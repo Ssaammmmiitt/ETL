@@ -1,0 +1,8 @@
+.env
+secrets/*
+!secrets/.gitkeep
+data/landing/*.csv
+data/archive/*.csv
+logs/
+config/
+__pycache__/
