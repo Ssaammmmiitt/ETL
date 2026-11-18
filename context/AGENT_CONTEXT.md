@@ -1,17 +1,18 @@
 # Agent handoff: airflow-medallion
 
-Attach this file at the start of a new chat. Last updated **18 Nov 2026**: Lessons 1–4 done,
-Lesson 5 (Bronze idempotent load / G2 / archive) written and **waiting for the learner's checkpoint**.
-DAG files and dag_ids use `01_`, `02_`, … (no `lesson` prefix).
+Attach this file at the start of a new chat. Last updated **18 Nov 2026**.
+
+**Status:** Lessons **1–5 done**. Lesson **6 in progress** (slim `generate_complex.py`: five days in `data/landing/`, ~800 lines/day; **no** history folder).
+Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `05_` (no `lesson` prefix).
 
 ## 1. Start here
 
 1. Look at [`architecture-Simple view.png`](architecture-Simple%20view.png): the target. Every name comes from it.
-2. Read this file → [`LESSONS.md`](LESSONS.md) (checklist, curriculum) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest file in [`lessons/`](lessons/).
-3. **Do not start Lesson 6** until the learner confirms the Lesson 5 checkpoint (section 7).
-   Lesson files share one structure: header table → idea + basic terms → code walkthrough → run it → points to remember → exercises → checkpoint → troubleshooting.
-   DAG naming: `dags/NN_<topic>.py` with `dag_id="NN_<topic>"` and tags `["medallion", "NN"]` — never `lessonNN_`.
-4. After each lesson: write `context/lessons/NN_<topic>.md`, update the `LESSONS.md` checklist and status, fix or add concepts in `THEORY.md`, update section 7 here, and keep `README.md` (project root) in sync.
+2. Read [`PROGRESS.md`](PROGRESS.md) → this file → [`LESSONS.md`](LESSONS.md) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest lesson in [`lessons/`](lessons/) (currently [`06_history_generator.md`](lessons/06_history_generator.md)).
+3. **Do not start Lesson 7** until the learner confirms the Lesson 6 checkpoint (section 7).
+   Lesson format: header → idea + terms → code walkthrough → run → remember → exercises → checkpoint → troubleshooting.
+   DAG naming: `dags/NN_<topic>.py`, `dag_id="NN_<topic>"`, tags `["medallion", "NN"]`.
+4. After each lesson: write `context/lessons/NN_<topic>.md`, update `LESSONS.md` + `PROGRESS.md`, THEORY if needed, section 7 here, and `README.md`.
 
 ## 2. The learner
 
@@ -39,7 +40,9 @@ DAG files and dag_ids use `01_`, `02_`, … (no `lesson` prefix).
 | Topic | Decision (why) |
 |---|---|
 | Airflow | Existing **3.3.2** official image + Docker Compose (CeleryExecutor). Teach the brief's 2.x names next to the 3.x ones |
-| History | **1 Jan – 9 Nov 2026, every day, ~1,000 sales lines/day**, generated in L6 and loaded once in L9 by an initial-load DAG (realistic Gold + baseline for statistical outlier checks; L2 stays one day) |
+| History | **Deferred.** L6 generates **five pipeline days only** (~800 sales lines/day). Long Jan–Nov history can be added later if Gold/statistical G12 needs it; L9 initial-load DAG only if/when history exists |
+| Sales vs stock | Complex generator: clean sales `ITEM_ID` ∈ store stocked set; **one** planted orphan `199999` for G7 |
+| Planted defects | In L6 data: D1 null ITEM_ID×2 (11 Nov), D2 neg qty (11), D4 dup line (11, 811 rows), D3 orphan (12), D5 `LOCN 1008` CITY_ID Spokane→Portland from 13 Nov (SCD2). Per-store txns cycle 12/14/16/18/20 (400 total) |
 | Dates | Weekdays **10, 11, 12, 13, 16 Nov 2026**; schedule `0 6 * * 1-5`; `airflow backfill create --dag-id medallion_daily --from-date 2026-11-10 --to-date 2026-11-16`; `max_active_runs=1` (SCD2 and soft-close depend on day order) |
 | Stages | Internal stage `@my_int_stage` only. **External stage and storage integration dropped** by the learner on 18 Nov (no S3/Azure/GCS): departure 9. Don't teach or write them; list it in README limitations |
 | Auth | Key pair, `AIRFLOW_SVC` `TYPE = SERVICE`; key file `secrets/rsa_key.p8` mounted read-only; connection extra `private_key_file` |
@@ -191,16 +194,23 @@ G6: 0 violations; no negative net.
 
 ### Status
 
-- **Lessons 1–4 done** (18 Nov 2026).
-- **Lesson 5 checkpoint pending** (`context/lessons/05_bronze_load.md`). Run: `airflow dags test 05_bronze_load 2026-11-10` (restore landing from `data/archive/2026-11-10` or regenerate first if needed).
+| Lesson | Status (18 Nov 2026) |
+|---|---|
+| 1 Environment | Done |
+| 2 Simple data + STG DDL | Done |
+| 3 Stage PUT/LIST/COPY | Done |
+| 4 FileSensor + G1 | Done |
+| 5 Bronze DELETE+FORCE, G2, archive | Done (checkpoint passed) |
+| 6 History / complex generator | **In progress** |
+| 7–14 | Pending |
 
-**Expected checkpoint replies:**
-1. First run green; files under `data/archive/2026-11-10/`.
-2. Counts 5000 / 1502 / 101 / 25; net 2843788.51.
-3. Second run (copy archive → landing): same counts/sum.
-4. Hard-coding check clean; exercises 1–6 (FORCE alone duplicates; DELETE+FORCE is the pair; G2 catches extra fields; archive after load).
+**Lesson 5 closed:** idempotent Bronze proven (5000 / 1502 / 101 / 25, net 2843788.51 on *simple* Nov 10). Archive under `data/archive/2026-11-10/`.
 
-**Next:** Lesson 6 (complex generator + history 1 Jan–9 Nov).
+**Lesson 6 complex totals (slim generator):** **810** sales lines/day (Nov 11 = **811**); **400 txns** with per-store **12/14/16/18/20**; inventory **1501**; Nov 10 net **2819814.46**. No `data/history/`. Clean sales ⊆ stocked; defects D1–D5 planted (see ASSUMPTIONS).
+
+**To close Lesson 6**, learner replies with checkpoint from [`lessons/06_history_generator.md`](lessons/06_history_generator.md) §6.7.
+
+**Next after L6 checkpoint:** Lesson 7 — Silver TMP + G3–G6 + G12.
 
 ## 8. Plan for the remaining lessons
 
@@ -209,11 +219,11 @@ G6: 0 violations; no negative net.
 | 3 | Stages (**written**) | See "Stage and COPY (L3)" in section 6 |
 | 4 | Waiting (G1) (**written**) | `dags/04_waiting.py`: FileSensor.partial.expand ×4; PUT; `assert_files_on_stage` (LIST + size); Assets taught in notes only |
 | 5 | Bronze (**written**) | `dags/05_bronze_load.py`: wait → PUT overwrite → G1 assert → G2 csv contract → DELETE+FORCE load → archive |
-| 6 | Generator v2 | `generate_complex.py` (deterministic): **history 1 Jan – 9 Nov 2026, every day, ~1,000 sales lines/day** (learner chose this 18 Nov) with weekend peaks, price/promo changes, November season; plus the 5 daily dates; returning customers, changing stock, outliers kept |
+| 6 | Generator v2 (**written**, slimmed 18 Nov) | `scripts/generate_complex.py`: five days → landing; ~800 lines/day; sales⊆stocked; Nov 10 outliers+anomalies; **D1–D5 planted**; history deferred; lesson [`06_history_generator.md`](lessons/06_history_generator.md) |
 | 7 | Silver TMP | Transient `TMP_SALES_LINE` (delta), `TMP_CUSTOMER` (members, `LAST_SEEN_DT`), `TMP_ITEM_LOC_SNAPSHOT` (`AVAILABLE_QTY`), `TMP_ITEM_HIER` and `TMP_LOCN_HIER` (overwrite); `TMP_QUARANTINE` (`GATE_ID`, `REASON_CD`, `RAW_RECORD = OBJECT_CONSTRUCT(*)`); gates G3–G6 and G6b. **G12 `gates/g12_outlier_limits.sql` reads `outlier_rules`, quarantines A1–A4, alerts.** Identity: STG = TMP + quarantined |
 | 8 | Gold dimensions | `DIM_DEPARTMENT → CATEGORY → SUBCATEGORY → ITEM` ‖ `DIM_DIVISION → REGION → CITY → LOCN` (SCD2: `EFFECTIVE_START_DT/END_DT`, `CURRENT_FLG`, `INSERT_TS/UPDATE_TS`); `ITEM_DESC` SCD1; `DIM_CUSTOMER` SCD1 MERGE; `DIM_DAY` from the seed; sequence vs `HASH` keys; MERGE vs INSERT OVERWRITE vs `NOT EXISTS` |
-| 9 | Gold facts + full DAG | `FCT_SALES` (MERGE on `TRANSACTION_ID, LINE_NUM`, `CLUSTER BY (DAY_KY)`), `FCT_INVENTORY` soft-close, `FCT_PRICE`; G7 (keys resolve), G8 (inventory ±20%); `medallion_daily` wait → bronze → silver → gold; **separate one-time initial-load DAG for the history** (bulk COPY, not 313 backfill runs). History also enables the statistical G12 method (item median ± spread) |
-| 10 | Very complex data + defects | `generate_very_complex.py`: 2 null `ITEM_ID` (G3), 1 negative qty (G6), 1 orphan item (G7), 1 duplicate line (G4), 1 store changes `CITY_ID` (SCD2); PK checker `gates/pk_<table>.sql`; G10 |
+| 9 | Gold facts + full DAG | `FCT_SALES` (MERGE on `TRANSACTION_ID, LINE_NUM`, `CLUSTER BY (DAY_KY)`), `FCT_INVENTORY` soft-close, `FCT_PRICE`; G7 (keys resolve), G8 (inventory ±20%); `medallion_daily` wait → bronze → silver → gold. Initial-load DAG **only if** long history is added later |
+| 10 | Prove defects + PK/G10 | Defects already in L6 files — prove G3/G4/G6/G7 + SCD2 on `DIM_LOCN`; PK checker `gates/pk_<table>.sql`; G10. No separate `generate_very_complex.py` unless needed |
 | 11 | Aggregate + recon + alerting | `AGG_DAILY_ITEM_LOCN_SALES`, `VW_DAILY_ITEM_LOCN_SALES`; G9; G11 writes `AUDIT.RECON_DAILY_NET_SALES (DAY_KY, VARIANCE_AMT)` = STG net − quarantined net (incl. G12) − FCT net; `reconcile` returns bool → `@task.branch` → `recon_passed` or `send_alert` (Mailpit) → `fail_run`; `on_failure_callback` |
 | 12 | Idempotency + reload of a bad day | Counts and sums before and after a second run must match; the diagram's reload policy for day D |
 | 13 | Five-day backfill | 10, 11, 12, 13, 16 Nov, every task green |

@@ -7,7 +7,7 @@ paths or table names.
 **Data level:** none yet. We prove the plumbing before moving any data.
 
 **Read first in [THEORY.md](../THEORY.md):**
-[1 Medallion architecture](../THEORY.md#sec-1-medallion),
+[1 Medallion architecture](../THEORY.md#1-medallion-architecture-stg--tmp--tgt--aggregate),
 [2.1 Components](../THEORY.md#21-components),
 [2.3 Parse time vs run time](../THEORY.md#23-parse-time-vs-run-time),
 [2.6 Connections, variables, templating](../THEORY.md#26-connections-variables-templating-and-the-fernet-key),
@@ -103,9 +103,9 @@ The private key is a file in `secrets/`, mounted read-only into the containers a
 | `include/config/connections.example.json` | Template for both connections (no secrets inside) |
 | `include/sql/setup/00_bootstrap.sql` | Warehouse, database, 4 schemas, role, service user |
 | `include/sql/checks/whoami.sql` | Smoke-test query using `{{ var.json.* }}`, `{{ conn.* }}` and `{{ ds }}` |
-| `dags/lesson01_connection_check.py` | Two tasks: run `whoami.sql`, then check the 4 schemas exist |
+| `dags/01_connection_check.py` | Two tasks: run `whoami.sql`, then check the 4 schemas exist |
 
-Read `dags/lesson01_connection_check.py` now. Notice that it contains no account, no user,
+Read `dags/01_connection_check.py` now. Notice that it contains no account, no user,
 no database name and no path. Everything arrives through `config.py`, the Variable, or the
 connection.
 
@@ -230,12 +230,12 @@ into a shell history.
 
 ## 1.9 Run the smoke-test DAG
 
-Option A, from the UI: find `lesson01_connection_check`, unpause it, click **Trigger**.
+Option A, from the UI: find `01_connection_check`, unpause it, click **Trigger**.
 
 Option B, from the CLI (runs the whole DAG in one process and prints the logs):
 
 ```powershell
-docker compose run --rm airflow-cli airflow dags test lesson01_connection_check 2026-11-10
+docker compose run --rm airflow-cli airflow dags test 01_connection_check 2026-11-10
 ```
 
 **Observe:**
@@ -270,7 +270,7 @@ Select-String -Path dags\*.py -CaseSensitive -Pattern 'snowflakecomputing','pass
 **Observe:** no output = pass. Any output is a file name, line number and the offending line.
 It is case-sensitive on purpose: lowercase task ids like `create_stg_sales` or `load_dim_item`
 are fine; uppercase Snowflake names (`STG_SALES`, `DIM_ITEM`, the table-type prefixes from
-[THEORY 1.1](../THEORY.md#sec-1-1-naming)) belong in SQL files or the Variable. Re-run it whenever you add a DAG.
+[THEORY 1.1](../THEORY.md#11-naming-convention)) belong in SQL files or the Variable. Re-run it whenever you add a DAG.
 
 ---
 

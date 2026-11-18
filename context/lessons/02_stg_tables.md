@@ -2,139 +2,230 @@
 
 | | |
 |---|---|
-| **Goal** | Generate one day of source files (+ calendar seed) and create what receives them: 2 file formats and the 4 **STG** (Bronze) tables from [the diagram](../architecture-Simple%20view.png) |
-| **Data** | 10 Nov 2026 only: 5,000 sales lines, 1,502 inventory rows, 101 items, 25 stores. Includes **valid outliers** and 4 **planted anomalies** (solved in L7) |
-| **Read first** | THEORY [1 Architecture](../THEORY.md#sec-1-medallion) · [3.4 File formats](../THEORY.md#sec-3-4-file-formats) · [3.7 NULLs](../THEORY.md#sec-3-7-null-handling) · [3.10 Data types](../THEORY.md#sec-3-10-data-types) · [5.6 Outliers vs anomalies](../THEORY.md#sec-5-6-outliers) |
-| **Not yet** | No data is loaded. Files reach a stage in L3 and the STG tables in L5 |
-
-> If Ctrl+click opens only the top of THEORY, use Markdown preview (`Ctrl+Shift+V`) and click again.
+| **Goal** | Generate one day of source files, then create the 2 **file formats** and 4 **STG** (Bronze) tables that will receive them ([diagram](../architecture-Simple%20view.png)) |
+| **You build** | 2 Python generators, 1 file-format SQL, 4 table SQL files, 1 DAG |
+| **Not yet** | No data is loaded. Files reach Snowflake in L3; the tables are filled in L5 |
+| **Theory (optional)** | [3.4 File formats](../THEORY.md#34-file-formats-and-copy-into) · [3.10 Data types](../THEORY.md#310-data-types-and-why-we-pick-them) · [5.6 Outliers](../THEORY.md#56-outliers-vs-anomalies-and-the-configurable-gate-g12) |
 
 ---
 
-## 2.1 Concepts
+## 2.1 The idea in one picture
 
-### The source drops (first two columns of the diagram)
+```
+generate_simple.py ──► data/landing/*.csv ──(L3: PUT to stage)──(L5: COPY INTO)──► BRONZE.STG_* tables
+                                                                                   ▲
+02_stg_setup DAG ── creates the empty tables + the file formats (this lesson) ┘
+```
 
-| File | Rows | Header | One row = | Lands in | Load |
-|---|---|---|---|---|---|
-| `sales_20261110.csv` | 5,000 | yes | one POS line (+ member details if a member) | `STG_SALES` | delta |
-| `inventory_20261110.csv` | 1,502 | **no** | one item at one location: stock + prices | `STG_INVENTORY` | full |
-| `item_master_20261110.csv` | 101 | yes | one item + subcategory, category, department | `STG_ITEM_MASTER` | full |
-| `store_master_20261110.csv` | 25 | yes | one location + city, region, division | `STG_STORE_MASTER` | full |
-| `data/seed/seed_dim_day.csv` | 730 | yes | one calendar day, 2026–2027 | `DIM_DAY` directly (L8) | seed |
+**Basic terms**
 
-- **Inventory has no header** on purpose: the brief's **positional load** (`$1..$8` in file order).
-- **The seed skips STG and TMP**: the diagram's one departure (a generated calendar has no source). It is version controlled.
-- **Column names** follow the diagram: `_ID` key, `_NM` name, `_DESC`, `_DT` date, `_AMT` money, `_QTY` quantity, `_FLG` flag, `_TXT`, `_CD`, `_NUM`. Headers are upper case, so name-matching in L3 is 1:1.
-
-### What the data contains, and why
-
-| Feature | Where | Why it is there |
+| Term | Meaning | Here |
 |---|---|---|
-| Non-members (every 5th transaction, 1,025 lines) | Customer columns empty → `NULL` | `TMP_CUSTOMER` skips them; `FCT_SALES` keeps them |
-| Weighed items (D03 Fresh) | `SOLD_QTY` like `0.750` | Why quantities are `NUMBER(18,3)` |
-| Promo prices (every 10th item) | `PROMO_PRICE_AMT` filled, else empty | Sale uses the promo price; feeds `FCT_PRICE` later |
-| Amount rule (gate G6) | `SALES_AMT = SOLD_QTY × UNIT_PRICE_AMT`; `NET = SALES_AMT − DISCOUNT_AMT`; tax separate; discount never above the sale | Every line passes G6 |
-| Stock rule (gate G6b) | `RESERVED_QTY ≤ ON_HAND_QTY` | Every row passes G6b |
+| Source drop | A file a source system sends every day | `sales_20261110.csv` |
+| Header | First line with column names | inventory has **none** on purpose |
+| File format | A Snowflake object that says *how to read* a CSV (delimiter, header, NULLs) | `FF_CSV_HEADER`, `FF_CSV_POSITIONAL` |
+| DDL | SQL that creates structure (`CREATE TABLE`), not data | `ddl/bronze/stg_sales.sql` |
+| STG table | Bronze: an exact copy of the file + a few tracking columns | `STG_SALES` |
+| Lineage column | A column *we* add to trace each row back to its file and run | `_SOURCE_FILE`, `_BATCH_ID` |
+| Jinja | `{{ ... }}` placeholders Airflow fills in before sending SQL to Snowflake | `{{ var.json.medallion_config.database }}` → `MEDALLION_DB` |
+| Operator / task | An operator is a task type; a task is one box in the DAG | `SQLExecuteQueryOperator` → `create_stg_sales` |
 
-### Outliers: extreme but valid
+---
 
-An **outlier** is unusual but correct, so it must pass every gate and reach Gold. An
-**anomaly** is wrong but looks like normal data, so it gets quarantined. Gates check business
-rules, not "looks odd".
+## 2.2 The data
 
-| Outlier | Where | What it tests later |
+| File | Rows | Header | One row = | Goes to |
+|---|---|---|---|---|
+| `sales_20261110.csv` | 5,000 | yes | one till line (+ member details) | `STG_SALES` |
+| `inventory_20261110.csv` | 1,502 | **no** | one item at one store: stock + price | `STG_INVENTORY` |
+| `item_master_20261110.csv` | 101 | yes | item → subcategory → category → department | `STG_ITEM_MASTER` |
+| `store_master_20261110.csv` | 25 | yes | store → city → region → division | `STG_STORE_MASTER` |
+| `data/seed/seed_dim_day.csv` | 730 | yes | one calendar day (2026–2027) | `DIM_DAY` in Gold directly (L8) |
+
+Real lines from the files:
+
+```
+sales:      T20261110-1001-0002,2,2026-11-10,1001,100010,M000016,Ivy Garcia,EXECUTIVE,ivy.garcia16@example.com,555-0016,5.000,8.60,0.75,43.00,3.38,42.25
+inventory:  2026-11-10,100001,1001,20.000,2.000,6.000,2.60,
+item:       100001,Family Milk 1,"Family Milk, pack 2",Great Value,FOOD,SC101,Milk,...
+```
+
+- Sales maths: `5.000 × 8.60 = 43.00` (SALES), `43.00 − 0.75 = 42.25` (NET), `42.25 × 8% = 3.38` (TAX).
+- Inventory: no header; the trailing comma = an empty promo price (→ `NULL`).
+- Item: `"Family Milk, pack 2"` is quoted because it contains a comma.
+
+**What's inside the data, and why:**
+
+| Kind | Examples | Purpose |
 |---|---|---|
-| Premium item `100101` at **2,499.99** | 2 real sales lines (stores 1001, 1013), stocked in 2 stores | Money precision `NUMBER(18,2)`; a new item with very few rows |
-| Near-free item `100045` at **0.05** | ~50 lines; discount capped → **12 lines with `NET_SALES_AMT = 0.00`** in total | Zero amounts are valid, not NULL |
-| Bulk business buy **480** units | `T20261110-1001-0050` line 3 | No "max quantity" rule drops it |
-| 100% discount | `T20261110-1002-0001` line 1 | Net 0 still counts in reconciliation |
-| **0.005 kg** weighed sale | `T20261110-1002-0026` line 2 | Smallest `NUMBER(18,3)` step survives the cast |
-| Out of stock `0.000` | item 100011 at 1001 | Zero ≠ missing |
-| Huge stock **25,000** | item 100021 at 1001 | Gate G8 counts rows, not quantities |
-| `RESERVED_QTY = ON_HAND_QTY` | item 100031 at 1001 | Boundary of G6b: must **not** alert |
+| Normal variety | 1,025 non-member lines (empty customer columns), weighed items (`0.750` kg), promo prices on every 10th item | Test NULL handling, `NUMBER(18,3)`, price logic |
+| **Valid outliers** (keep them) | Item at 2,499.99; item at 0.05; 480-unit bulk buy; 100% discount (net 0.00); 0.005 kg; stock 0 and 25,000 | Extreme but true: must reach Gold |
+| **Anomalies** (catch them in L7) | A1 price ×1000 (2,499,990.00); A2 10,000 units; A3 price ÷100 (0.17 instead of 17.50); A4 stock 9,999,999 | Wrong but arithmetically consistent. Gate G12 must quarantine them |
 
-### Planted anomalies: the problem to solve in L7
+The four anomalies add **2,639,490.51** to the day's net sales, so the file total is about 14 times the real one.
+In L7, gate G12 catches them with limits stored in `variables.json` → `outlier_rules`. One of those limits flags any price more than 10 times the item's normal price.
 
-Each line below still obeys the amount rule (G6), so the arithmetic gates pass it. Only a
-**range** check finds it. Together they add **2,639,490.51** to the file's net sales, so one
-decimal slip makes the day look 14 times bigger than it was.
+---
 
-| # | Anomaly | Where | Value vs normal | Real-world cause | G12 reason |
-|---|---|---|---|---|---|
-| A1 | Price ×1000 | `T20261110-1006-0001` line 1, item 100101 | **2,499,990.00** vs 2,499.99 | Decimal point lost | `PRICE_TOO_HIGH`, `LINE_AMT_TOO_HIGH` |
-| A2 | Fat-finger quantity | `T20261110-1011-0001` line 1, item 100016 | **10,000** units (net 139,500.00) | Key held down at the till | `QTY_TOO_HIGH`, `LINE_AMT_TOO_HIGH` |
-| A3 | Price ÷100 | `T20261110-1016-0001` line 1, item 100021 | **0.17** vs 17.50 | Cents typed as units | `PRICE_TOO_LOW` |
-| A4 | Placeholder stock | inventory: item 100041 at 1001 | **9,999,999.000** on hand | "Unknown" filled with 9s | `ON_HAND_TOO_HIGH` |
+## 2.3 Code walkthrough
 
-**How L7 detects them (gate G12):** the limits live in `medallion_config.outlier_rules`
-(`variables.json`), not in code:
+### a) `scripts/generate_simple.py`: makes the 4 files
 
-| Rule | Limit | Catches | Lets through |
-|---|---|---|---|
-| Sale price ÷ item's inventory price | `price_ratio_max` 10, `price_ratio_min` 0.1 | A1, A3 | 0.05 item (ratio 1), promo prices (0.9), 2,499.99 item (ratio 1) |
-| `SOLD_QTY` | `max_sold_qty` 1,000 | A2 | 480-unit bulk buy |
-| `NET_SALES_AMT` per line | `max_line_net_amt` 50,000 | A1, A2 | A real 2,499.99 sale |
-| `ON_HAND_QTY` | `max_on_hand_qty` 100,000 | A4 | 25,000 stock |
+**Flow (bottom of the file):**
 
-The ratio rule is the important one: one fixed price limit can't serve both a 0.05 item and a
-2,499.99 item, but "more than 10 times *this item's* usual price" works for both.
-**Resolution:** quarantine the row (never delete it), alert, the source sends a corrected file,
-then reload day D ([THEORY 5.5](../THEORY.md#sec-5-5-retention-reload)).
+```python
+ITEMS, PRICES = build_items(100)            # 100 items + their prices
+PRICES["100045"] = (0.05, None, ...)        # one near-free item (outlier)
+STORES = build_stores()                     # 25 stores, one per city
+SALES = build_sales(ITEMS, STORES, PRICES)  # 25 stores x 100 transactions x 1-3 lines = 5,000
+INVENTORY = build_inventory(...)            # 25 stores x 60 items = 1,500
+add_outliers(...)                           # +1 premium item, +2 inventory rows, edits a few lines
+add_anomalies(SALES, INVENTORY)             # plants A1-A4
+write_csv(...)  x4                          # writes data/landing/*.csv
+print(...)                                  # control totals you compare later
+```
 
-### STG contract and data types
+**Key pieces:**
 
-STG keeps a byte-for-byte copy: **no cast, no filter, no rename**. It does not promise types or
-unique keys; that is TMP's job (L7).
+| Code | What it does | Why |
+|---|---|---|
+| `LANDING_DIR = Path(__file__).resolve().parent.parent / "data" / "landing"` | Finds `data/landing` relative to the script | Works from any folder, no hard-coded `C:\...` path |
+| `DEPARTMENTS = [("D01", "Grocery", "FOOD", [...]), ...]` | Nested lists = the hierarchy department → category → subcategory | Typed out because it's small and readable |
+| `item_num % len(BRANDS)` | `%` (modulo) cycles through a list: 0, 1, 2, …, 11, 0, 1, … | **Deterministic**: no `random`, so every run writes identical files |
+| `txn_id = f"T{DATE_NODASH}-{locn_id}-{txn_n:04d}"` | Builds `T20261110-1001-0002`; `:04d` pads to 4 digits | Readable, unique transaction id |
+| `["", "", "", "", ""] if txn_n % 5 == 0 else customer(...)` | Every 5th transaction has empty customer columns | Non-members → `NULL` in Snowflake |
+| `qty = 0.5 + ((txn_n + line) % 5) * 0.25` | PERISHABLE items get 0.50, 0.75, … 1.50 kg | Why quantities need 3 decimals |
+| `discount = min(..., sales_amt)` | Discount can never exceed the sale | NET is never negative |
+| `f"{qty:.3f}"`, `f"{price:.2f}"` | Write numbers as text with fixed decimals | Files are text; `.2f` for money, `.3f` for quantity |
+| `set_sales_line(row, qty=..., price=...)` | Changes one line **and recomputes** SALES, TAX, NET | Outliers and anomalies stay arithmetically correct, so only range checks can catch them |
+| `write_csv(name, header, rows)` with `header=None` for inventory | Skips the header row | Creates the positional file |
+| `open(path, "w", newline="")` + `lineterminator="\n"` | Avoids blank lines / `\r\n` on Windows | Same bytes on every machine |
+
+**Row layout = list positions.** In `set_sales_line`, `row[10]` is `SOLD_QTY`, `row[11]` `UNIT_PRICE_AMT`,
+`row[12]` `DISCOUNT_AMT`, `row[13]` `SALES_AMT`, `row[14]` `TAX_AMT`, `row[15]` `NET_SALES_AMT`
+(count from 0 in `SALES_HEADER`).
+
+### b) `scripts/generate_seed_dim_day.py`: the calendar
+
+```python
+iso_year, iso_week, iso_weekday = day.isocalendar()   # Monday=1 ... Sunday=7
+rows.append([day.strftime("%Y%m%d"), day.isoformat(), ...,
+             "Y" if iso_weekday >= 6 else "N",          # WEEKEND_FLG
+             "Y" if day in HOLIDAYS else "N"])          # HOLIDAY_FLG
+day += timedelta(days=1)
+```
+
+`DAY_KY` = `20261110` (the date as a number, which sorts and joins fast). It skips STG/TMP because no
+source system sends a calendar. It's version controlled, so it's traceable.
+
+### c) `include/sql/setup/01_file_formats.sql`: how Snowflake reads CSV
+
+```sql
+CREATE OR REPLACE FILE FORMAT {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.FF_CSV_HEADER
+    TYPE = CSV   FIELD_DELIMITER = ','   SKIP_HEADER = 1
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'   EMPTY_FIELD_AS_NULL = TRUE   NULL_IF = ('', 'NULL', 'null')
+    TRIM_SPACE = FALSE   ERROR_ON_COLUMN_COUNT_MISMATCH = TRUE   ENCODING = 'UTF8';
+```
+
+| Option | Effect | Example |
+|---|---|---|
+| `SKIP_HEADER = 1` / `0` | Skip the first line (header) / don't | `FF_CSV_POSITIONAL` uses 0 for inventory |
+| `FIELD_OPTIONALLY_ENCLOSED_BY = '"'` | Commas inside quotes stay in one field | `"Family Milk, pack 2"` = 1 column, not 2 |
+| `EMPTY_FIELD_AS_NULL`, `NULL_IF` | Empty or the text `NULL` → real `NULL` | Non-member `CUSTOMER_ID` |
+| `TRIM_SPACE = FALSE` | Keep spaces as they are | Bronze keeps the raw value; Silver trims |
+| `ERROR_ON_COLUMN_COUNT_MISMATCH = TRUE` | Wrong number of columns → load fails, **but only for a plain COPY**. Our COPY uses `SELECT $1, $2, …` (Lesson 3), which ignores it, so gate G2 gets its own check in L5 | Source added a column → you notice |
+
+`CREATE OR REPLACE` is safe here: a file format holds no data.
+
+### d) `include/sql/ddl/bronze/stg_*.sql`: the 4 tables
+
+```sql
+CREATE OR REPLACE TABLE {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_INVENTORY (
+    SNAPSHOT_DT      VARCHAR,          -- 8 file columns, in FILE ORDER, all text
+    ITEM_ID          VARCHAR,
+    ...
+    PROMO_PRICE_AMT  VARCHAR,
+    _INGEST_DT       DATE          NOT NULL,                            -- business day D
+    _SOURCE_FILE     VARCHAR       NOT NULL,                            -- which file
+    _SOURCE_ROW_NUM  NUMBER        NOT NULL,                            -- which line
+    _INGEST_TS       TIMESTAMP_NTZ NOT NULL DEFAULT CURRENT_TIMESTAMP(), -- when loaded
+    _BATCH_ID        VARCHAR       NOT NULL                             -- Airflow run_id
+);
+```
+
+After Airflow renders it, Snowflake receives `CREATE OR REPLACE TABLE MEDALLION_DB.BRONZE.STG_INVENTORY (...)`.
 
 | Column(s) | Type | Why |
 |---|---|---|
-| Every file column | `VARCHAR` (no length) | A bad value (`3.9O`) must still land; TMP casts and quarantines. A length would only add a way to reject a row |
-| `_INGEST_DT` | `DATE` | Day D of the file. The diagram's partition: reload = `WHERE _INGEST_DT = D` |
-| `_SOURCE_FILE` | `VARCHAR` | Which file the row came from |
-| `_SOURCE_ROW_NUM` | `NUMBER` | Line in that file, to trace a quarantined row back |
-| `_INGEST_TS` | `TIMESTAMP_NTZ` default `CURRENT_TIMESTAMP()` | When it loaded; no time zone = simplest |
-| `_BATCH_ID` | `VARCHAR` | Airflow `run_id`: first load vs rerun |
+| File columns | `VARCHAR` | A bad value like `3.9O` must still land so we can quarantine it later. A number type would reject the whole row |
+| `_INGEST_DT` | `DATE` | Partition: reload a day with `WHERE _INGEST_DT = '2026-11-10'` |
+| `_SOURCE_ROW_NUM` | `NUMBER` | Points to the exact line in the file |
+| `_INGEST_TS` | `TIMESTAMP_NTZ` | Load time; "no time zone" is the simplest choice |
+| `_SOURCE_FILE`, `_BATCH_ID` | `VARCHAR` | Labels: which file, which run |
 
-The `_` prefix marks columns *we* add. Only lineage columns are `NOT NULL`. TMP and Gold use
-`VARCHAR(50)` etc. (as on the diagram) because there the length documents a checked contract.
+Column counts: `STG_SALES` 16 + 5, `STG_INVENTORY` 8 + 5, `STG_ITEM_MASTER` 15 + 5, `STG_STORE_MASTER` 14 + 5.
 
-### File formats
+### e) `include/medallion/config.py` + `include/config/variables.json`: where names live
 
-| Option | `FF_CSV_HEADER` | `FF_CSV_POSITIONAL` | Why |
-|---|---|---|---|
-| `SKIP_HEADER` | 1 | 0 | Skip the header, or there is none |
-| `FIELD_OPTIONALLY_ENCLOSED_BY` | `'"'` | `'"'` | A comma inside quotes stays one field |
-| `EMPTY_FIELD_AS_NULL`, `NULL_IF` | TRUE, `('', 'NULL', 'null')` | same | Empty → `NULL` (non-members, no promo) |
-| `TRIM_SPACE` | FALSE | FALSE | STG keeps values exactly; TMP trims |
-| `ERROR_ON_COLUMN_COUNT_MISMATCH` | TRUE | TRUE | Layout changed → fail loudly (gate G2) |
+| Kind of value | Lives in | Example |
+|---|---|---|
+| Ids used by DAG code | `config.py` | `SNOWFLAKE_CONN_ID = "snowflake_medallion"`, `SOURCES = ["sales", "inventory", "item_master", "store_master"]` |
+| Database / schema names, paths, limits | Variable `medallion_config` (`variables.json`) | `"database": "MEDALLION_DB"`, `"schemas": {"bronze": "BRONZE"}` |
+| Table names | SQL files | `STG_INVENTORY` |
+| Credentials | Airflow Connection | key file path, account |
 
-**`CREATE OR REPLACE`** is used for the STG tables only while they are empty. Once loaded (L5),
-change columns with `ALTER TABLE` and reload a day with `DELETE WHERE _INGEST_DT = ...`.
+`{{ var.json.medallion_config.schemas.bronze }}` reads the Variable as JSON and takes `schemas` → `bronze` = `BRONZE`.
 
-**No names in the DAG:** SQL says `{{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_SALES`.
-The DAG only knows `SOURCES` and builds the path `ddl/bronze/stg_<source>.sql`.
+### f) `dags/02_stg_setup.py`: the DAG
 
----
+```python
+@dag(
+    dag_id="02_stg_setup",
+    start_date=datetime(2026, 11, 1),
+    schedule=None,                          # manual only: setup runs once
+    catchup=False,
+    template_searchpath=[str(SQL_DIR)],     # where to find "setup/..." and "ddl/..." files
+    default_args={"retries": 1, "retry_delay": timedelta(minutes=1)},
+    tags=["medallion", "02"],
+)
+def stg_setup():
+    create_file_formats = SQLExecuteQueryOperator(
+        task_id="create_file_formats",
+        conn_id=SNOWFLAKE_CONN_ID,          # credentials come from the Connection
+        sql="setup/01_file_formats.sql",    # a path ending in .sql → Airflow reads + renders the file
+    )
+    for source in SOURCES:                  # 4 sources → 4 tasks
+        create_table = SQLExecuteQueryOperator(
+            task_id=f"create_stg_{source}",
+            conn_id=SNOWFLAKE_CONN_ID,
+            sql=f"ddl/bronze/stg_{source}.sql",
+        )
+        create_file_formats >> create_table # ">>" = "runs after"
 
-## 2.2 Files
+stg_setup()                        # registers the DAG
+```
 
-| Path | Purpose |
+Resulting graph:
+
+```
+create_file_formats ──► create_stg_sales
+                    ├─► create_stg_inventory
+                    ├─► create_stg_item_master
+                    └─► create_stg_store_master
+```
+
+| Task | Purpose |
 |---|---|
-| `scripts/generate_simple.py` | The 4 drops, deterministic loops; `add_outliers()` and `add_anomalies()` are labelled steps |
-| `scripts/generate_seed_dim_day.py` | `data/seed/seed_dim_day.csv` (2026-01-01 → 2027-12-31) |
-| `include/sql/setup/01_file_formats.sql` | `FF_CSV_HEADER`, `FF_CSV_POSITIONAL` in BRONZE |
-| `include/sql/ddl/bronze/stg_{sales,inventory,item_master,store_master}.sql` | 4 STG tables: 16 / 8 / 15 / 14 file columns + 5 lineage |
-| `include/medallion/config.py` | `SOURCES = ["sales", "inventory", "item_master", "store_master"]` |
-| `include/config/variables.json` | Adds `seed_path` and `outlier_rules` (used from L7) |
-| `dags/lesson02_stg_setup.py` | `create_file_formats` → 4 × `create_stg_<source>` (a `for` loop) |
+| `create_file_formats` | Creates the CSV reading rules that L3's `COPY` will use. Runs first so every later step can rely on it |
+| `create_stg_<source>` ×4 | Creates the empty landing table for that file. The 4 don't depend on each other, so they run in parallel |
 
-**Why this task order:** L3's `COPY` needs the file formats; the 4 tables don't depend on each
-other, so they run in parallel.
+The DAG file holds no table, schema or database name. Adding a 5th source = 1 word in `SOURCES` + 1 SQL file.
 
 ---
 
-## 2.3 Generate the files
+## 2.4 Run it
+
+**1. Generate the files** (PowerShell, project folder):
 
 ```powershell
 cd C:\Users\sammit.poudyal\Desktop\Bootcamp\airflow-medallion
@@ -143,7 +234,7 @@ python scripts\generate_simple.py
 python scripts\generate_seed_dim_day.py
 ```
 
-**Observe:**
+Expected output:
 
 ```
 wrote sales_20261110.csv: 5000 rows
@@ -158,17 +249,10 @@ extremes: max SOLD_QTY 10000.000 | min SOLD_QTY 0.005 | max UNIT_PRICE_AMT 24999
 wrote seed_dim_day.csv: 730 rows (2026-01-01 to 2027-12-31)
 ```
 
-The `extremes:` line already gives the anomalies away: 10,000 units, a 2.5 million price, 9,999,999
-in stock. Looking at max/min is the first, cheapest outlier check.
+The **totals** are your control numbers for reconciliation. The **extremes** line already exposes
+the anomalies (10,000 units, a 2.5-million price). Checking max/min is the cheapest outlier check.
 
-Peek: `Get-Content data\landing\inventory_20261110.csv -TotalCount 3` → no header, lines like
-`2026-11-10,100001,1001,20.000,2.000,6.000,2.60,` (last field = empty promo price).
-
----
-
-## 2.4 Drop the old Bronze tables (one time, Snowsight)
-
-They are empty, so nothing is lost.
+**2. Drop the old Bronze tables** (one time, Snowsight; they are empty):
 
 ```sql
 USE ROLE MEDALLION_ROLE;
@@ -178,31 +262,26 @@ DROP TABLE IF EXISTS MEDALLION_DB.BRONZE.POS_SALES;
 DROP TABLE IF EXISTS MEDALLION_DB.BRONZE.INVENTORY_SNAPSHOT;
 ```
 
----
-
-## 2.5 Create the file formats and STG tables
+**3. Import the Variable and run the DAG:**
 
 ```powershell
 docker compose run --rm airflow-cli airflow variables import /opt/airflow/include/config/variables.json
-docker compose run --rm airflow-cli airflow dags test lesson02_stg_setup 2026-11-10
+docker compose run --rm airflow-cli airflow dags test 02_stg_setup 2026-11-10
 ```
 
-**Observe:** 5 green tasks: `create_file_formats`, then `create_stg_sales`, `_inventory`,
-`_item_master`, `_store_master` side by side. **Rendered Templates** of `create_stg_sales`
-shows `MEDALLION_DB.BRONZE.STG_SALES`. The old `lesson02_bronze_setup` vanishes from the UI within ~30 s.
+Expected: 5 tasks succeed. In the UI → task `create_stg_sales` → **Rendered Templates**, the SQL shows
+`MEDALLION_DB.BRONZE.STG_SALES` (Jinja filled in).
 
----
-
-## 2.6 Verify
+**4. Verify in Snowsight:**
 
 ```sql
 USE ROLE MEDALLION_ROLE;  USE WAREHOUSE MEDALLION_WH;
-SHOW FILE FORMATS IN SCHEMA MEDALLION_DB.BRONZE;      -- 2 rows
-SHOW TABLES IN SCHEMA MEDALLION_DB.BRONZE;            -- 4 STG_* tables, rows = 0
-DESC TABLE MEDALLION_DB.BRONZE.STG_INVENTORY;         -- 8 VARCHAR in file order, then 5 lineage (null? = N)
+SHOW FILE FORMATS IN SCHEMA MEDALLION_DB.BRONZE;   -- 2 rows
+SHOW TABLES IN SCHEMA MEDALLION_DB.BRONZE;         -- 4 STG_* tables, rows = 0
+DESC TABLE MEDALLION_DB.BRONZE.STG_INVENTORY;      -- 8 VARCHAR, then 5 lineage columns (null? = N)
 ```
 
-Hard-coding check (no output = pass):
+**5. Hard-coding check** (no output = pass):
 
 ```powershell
 Select-String -Path dags\*.py -CaseSensitive -Pattern 'snowflakecomputing','password','PRIVATE KEY','/opt/airflow','MEDALLION_(DB|WH|ROLE)','(BRONZE|SILVER|GOLD|AUDIT)\.','(STG|TMP|DIM|FCT|AGG|VW)_'
@@ -210,38 +289,53 @@ Select-String -Path dags\*.py -CaseSensitive -Pattern 'snowflakecomputing','pass
 
 ---
 
-## 2.7 Exercises
+## 2.5 Points to remember
 
-1. **Same files every time.** Run the generator twice; compare `Get-FileHash data\landing\sales_20261110.csv`. Why does that matter for acceptance criterion 1?
-2. **Replace vs alter.** Which statement adds a column to a loaded table without losing rows?
-3. **Data types.** Why is `SOLD_QTY` `VARCHAR` in STG but `NUMBER(18,3)` in TMP (not `(18,2)`, not an integer)? Why does `LOCN_ID` (`1001`) stay text in Gold? Why is `_INGEST_DT` a `DATE` but `_BATCH_ID` a `VARCHAR`?
-4. **Control total.** Confirm 2843788.51 and count the zero-net lines (expect 12):
-   ```powershell
-   $s = Import-Csv data\landing\sales_20261110.csv
-   ($s | Measure-Object NET_SALES_AMT -Sum).Sum
-   @($s | Where-Object { [decimal]$_.NET_SALES_AMT -eq 0 }).Count
-   ```
-   Keep it for L11: Gold net (**204,298.00**) + quarantined net (**2,639,490.51**) must equal it (G11).
-5. **Outlier or defect?** For each, say which and which gate would act: (a) `SOLD_QTY = 480`, (b) `SOLD_QTY = -2`, (c) `NET_SALES_AMT = 0.00` with a full discount, (d) `ITEM_ID` empty, (e) `RESERVED_QTY = 30` with `ON_HAND_QTY = 20`, (f) `SOLD_QTY = 10000`, (g) item 100021 sold at 0.17.
-6. **Find the anomalies yourself.** List the 3 largest lines by net amount, then answer: is the top one real? Which rule in the G12 table proves it isn't?
-   ```powershell
-   $s | Sort-Object { [decimal]$_.NET_SALES_AMT } -Descending | Select-Object -First 3 TRANSACTION_ID, ITEM_ID, SOLD_QTY, UNIT_PRICE_AMT, NET_SALES_AMT
-   ```
-   Then: why would a fixed `UNIT_PRICE_AMT > 1000` rule be wrong? If the business decides a bulk buy of 1,500 is normal, what do you change, and what do you **not** change?
-7. **Read the diagram.** Which TMP and Gold tables does `STG_STORE_MASTER` feed? Which gate catches an inventory file with a changed column count?
-6. **Read the diagram.** Which TMP and Gold tables does `STG_STORE_MASTER` feed? Which gate catches an inventory file with a changed column count?
+- **Bronze = copy, don't fix.** All file columns are `VARCHAR`; casting, trimming and checks happen in Silver (L7).
+- **Lineage columns** (`_` prefix) answer "which file, which line, which run, which day" for every row.
+- **Deterministic data** (`%` instead of `random`): same input, same output. That's what lets you prove a rerun changes nothing.
+- **Empty ≠ zero.** An empty field becomes `NULL` (unknown); `0.000` stock is a real value.
+- **Outlier ≠ error.** Keep extreme-but-true values; catch wrong values by **rules** with **configurable limits**, never by "looks odd".
+- `CREATE OR REPLACE` **deletes data.** Fine for file formats and empty tables. Once loaded, use `ALTER TABLE`.
+- **No names in DAGs:** ids in `config.py`, names in the Variable, table names in SQL, secrets in Connections.
+- **Never write** `{{ }}` **in a SQL comment.** Jinja renders comments too.
 
 ---
 
-## 2.8 Checkpoint
+## 2.6 Exercises
+
+1. **Same files every time.** Run the generator twice and compare `Get-FileHash data\landing\sales_20261110.csv`. Why does this matter for "a second run changes nothing"?
+2. **Replace vs alter.** Which statement adds a column to a *loaded* table without losing rows?
+3. **Data types.** Why is `SOLD_QTY` `VARCHAR` in STG but `NUMBER(18,3)` in TMP (not `(18,2)`, not an integer)? Why does `LOCN_ID` (`1001`) stay text? Why is `_INGEST_DT` a `DATE` but `_BATCH_ID` a `VARCHAR`?
+4. **Control total.** Confirm 2843788.51 and 12 zero-net lines:
+   ```powershell
+     $s = Import-Csv data\landing\sales_20261110.csv
+     ($s | Measure-Object NET_SALES_AMT -Sum).Sum
+     @($s | Where-Object { [decimal]$_.NET_SALES_AMT -eq 0 }).Count
+   ```
+
+     In L11: Gold net **204,298.00** + quarantined **2,639,490.51** must equal this.
+5. **Outlier or error?** Say which, and which gate acts: (a) `SOLD_QTY = 480` (b) `SOLD_QTY = -2` (c) net 0.00 after a full discount (d) empty `ITEM_ID` (e) `RESERVED_QTY = 30`, `ON_HAND_QTY = 20` (f) `SOLD_QTY = 10000` (g) item 100021 sold at 0.17 (normal 17.50).
+6. **Find the anomalies.** Show the 3 biggest lines:
+   ```powershell
+     $s | Sort-Object { [decimal]$_.NET_SALES_AMT } -Descending | Select-Object -First 3 TRANSACTION_ID, ITEM_ID, SOLD_QTY, UNIT_PRICE_AMT, NET_SALES_AMT
+   ```
+
+     Is the top one real? Why would a fixed rule `UNIT_PRICE_AMT > 1000` be wrong? If 1,500-unit bulk buys become normal, what do you change and what do you **not** change?
+7. **Read the code.** In `set_sales_line`, what would go wrong if it changed `SOLD_QTY` but did not recompute `NET_SALES_AMT`? Which gate would then catch the line?
+8. **Read the diagram.** Which TMP and Gold tables does `STG_STORE_MASTER` feed? Which gate catches an inventory file with a changed column count?
+
+---
+
+## 2.7 Checkpoint
 
 Reply with:
 
-- [ ] Generator output (5000 / 1502 / 101 / 25 rows, `NET_SALES_AMT total: 2843788.51`, `extremes:` line, seed 730)
-- [ ] `lesson02_stg_setup`: 5 tasks green
-- [ ] `SHOW FILE FORMATS`: 2; `SHOW TABLES`: 4 `STG_*` (old 4 dropped)
-- [ ] Hard-coding check: no output
-- [ ] Answers to exercises 2–7
+- [x] Generator output (5000 / 1502 / 101 / 25 rows, `NET_SALES_AMT total: 2843788.51`, `extremes:` line, seed 730)
+- [x] `02_stg_setup`: 5 tasks green
+- [x] `SHOW FILE FORMATS`: 2; `SHOW TABLES`: 4 `STG_*` (old 4 dropped)
+- [x] Hard-coding check: no output
+- [x] Answers to exercises 2–8
 
 ## Troubleshooting
 
@@ -249,7 +343,8 @@ Reply with:
 |---|---|
 | `python` not found | `py scripts\generate_simple.py` |
 | `Insufficient privileges ... 'BRONZE'` | Re-run the L1 bootstrap so `MEDALLION_ROLE` owns the schemas |
-| `TemplateSyntaxError` | A `{{ }}` inside a SQL comment; remove the braces |
-| `TemplateNotFound: ddl/bronze/stg_sales.sql` | File missing, or `SOURCES` still has old prefixes |
-| DAG not in the UI | Wait ~30 s, or `airflow dags list-import-errors` |
-| Old tables still listed | Run step 2.4 |
+| `TemplateSyntaxError` | `{{ }}` inside a SQL comment; remove the braces |
+| `TemplateNotFound: ddl/bronze/stg_sales.sql` | File missing, or a typo in `SOURCES` |
+| DAG not in the UI | Wait ~30 s, or run `airflow dags list-import-errors` |
+| `'dict object' has no attribute ...` | Variable not re-imported: run step 3's import command again |
+| Old tables still listed | Run step 2 |

@@ -6,17 +6,21 @@ net sales back to source.
 
 ![Architecture, simple view](context/architecture-Simple%20view.png)
 
+## Progress
+
+Lessons **1–5 done**; Lesson **6 in progress** (slim five-day complex generator; history deferred). See [context/PROGRESS.md](context/PROGRESS.md).
+
 ## Start here
 
 All documentation is in [`context/`](context/):
 
-1. [architecture-Simple view.png](context/architecture-Simple%20view.png) with
+1. [PROGRESS.md](context/PROGRESS.md): what is done and what is next.
+2. [architecture-Simple view.png](context/architecture-Simple%20view.png) with
    [architecture_simple.md](context/architecture_simple.md): the target architecture and naming convention.
-2. [LESSONS.md](context/LESSONS.md): goal, running checklist, lesson plan.
-3. [ASSUMPTIONS.md](context/ASSUMPTIONS.md): project assumptions, gates and departures (short).
-4. [THEORY.md](context/THEORY.md): read the sections listed for the current lesson.
-5. The current lesson in [context/lessons/](context/lessons/) (now
-   [05_bronze_load.md](context/lessons/05_bronze_load.md)): follow the steps, then run the checkpoint.
+3. [LESSONS.md](context/LESSONS.md): goal, running checklist, lesson plan.
+4. [ASSUMPTIONS.md](context/ASSUMPTIONS.md): project assumptions, gates and departures (short).
+5. [THEORY.md](context/THEORY.md): read the sections listed for the current lesson.
+6. Current lesson: [06_history_generator.md](context/lessons/06_history_generator.md).
 
 To continue in a new chat with an agent, start from [AGENT_CONTEXT.md](context/AGENT_CONTEXT.md).
 

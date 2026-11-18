@@ -3,6 +3,7 @@
 Single place for what this project assumes and why. Update this file when a decision changes.
 Detail lives in [THEORY.md](THEORY.md); the lesson plan is in [LESSONS.md](LESSONS.md); the
 target picture is [architecture-Simple view.png](architecture-Simple%20view.png).
+**Where we are in the course:** [PROGRESS.md](PROGRESS.md) (as of 18 Nov 2026: L1–L5 done, L6 in progress).
 
 ---
 
@@ -53,7 +54,19 @@ target picture is [architecture-Simple view.png](architecture-Simple%20view.png)
 | Schedule `0 6 * * 1-5`; day **D** = `{{ ds }}` | One run per weekday; data is as of D+1 in spirit |
 | `_INGEST_DT` = D; `_BATCH_ID` = `{{ run_id }}` | Day to delete / reload by, and which run did it |
 | `max_active_runs = 1` | SCD2, soft-close, price periods and G8 depend on the previous day |
-| **History 1 Jan – 9 Nov 2026** (every day, ~1,000 sales lines/day, ~313 days) loaded **once** by a separate initial-load DAG; the 5 days above run through `medallion_daily` | Realistic Gold (price, stock, SCD2 history) and a baseline for statistical outlier checks; a 313-run backfill would take hours. Reconciliation evidence stays 2 × 5 |
+| **Five pipeline days only** (~810 sales lines/day, **400 txns** total; per-store txns cycle **12/14/16/18/20**) | Enough for Bronze→Gold→recon; store traffic varies, day total fixed. **Long history deferred** |
+| Sales `ITEM_ID` ∈ that store’s stocked set (60/store; premium at 1001 & 1013), except **one planted orphan** | No accidental orphans; the missing-master sale is intentional for G7 |
+| **Five planted defects** in `generate_complex.py` (table below) | Brief requirements; data in L6, gates/SCD2 proven in L7–L10 |
+
+### Planted defects (complex data)
+
+| # | Defect | Where | Gate / effect |
+|---|---|---|---|
+| D1 | Two sales rows with null `ITEM_ID` | `sales_20261111.csv` — `T20261111-1001-0003` L1, `T20261111-1001-0004` L1 | G3 quarantine |
+| D2 | One negative `SOLD_QTY` | `sales_20261111.csv` — `T20261111-1001-0005` L3 | G6 quarantine |
+| D3 | Sale for item missing from item master | `sales_20261112.csv` — `T20261112-1002-0003` L1, `ITEM_ID=199999` | G7 quarantine + alert |
+| D4 | Duplicated `(TRANSACTION_ID, LINE_NUM)` | `sales_20261111.csv` — `T20261111-1001-0008` L2 twice (811 lines that day) | G4 keep latest |
+| D5 | Store “district” change (= `CITY_ID` move) | `store_master` from **2026-11-13**: `LOCN_ID=1008` Spokane `CT08` → Portland `CT04` | SCD2 on `DIM_LOCN` |
 
 ---
 
@@ -91,9 +104,9 @@ Full table: [THEORY 3.10](THEORY.md#310-data-types-and-why-we-pick-them).
 
 - Quarantine **never** silently drops a row; it stores `GATE_ID` and `REASON_CD`.
 - Identity per day: **STG rows = TMP rows + quarantined rows**.
-- **Outlier ≠ defect.** Valid extremes (2,499.99 item, 480 units, 25,000 stock) must reach Gold.
-  Anomalies (price ×1000, 10,000 units, price ÷100, 9,999,999 stock) are caught by G12 using a
-  reference price (today's inventory price) and limits that change by Variable import, not code.
+- **Outlier ≠ anomaly ≠ defect.** Valid extremes (2,499.99 item, 480 units, 25,000 stock) must reach Gold.
+  Anomalies (price ×1000, 10,000 units, price ÷100, 9,999,999 stock on Nov 10) are caught by G12.
+  Structural defects (null keys, negative qty, orphan, duplicate, SCD2 city move) are the planted table above.
 
 ---
 

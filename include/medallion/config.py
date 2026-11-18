@@ -17,6 +17,11 @@ SQL_DIR = Path(__file__).resolve().parent.parent / "sql"
 # when the file is parsed, so it is code, not a Variable.
 SOURCES = ["sales", "inventory", "item_master", "store_master"]
 
+# FileSensor (gate G1). The timeout is the arrival deadline for a day's files; it is short so
+# you can watch a timeout happen while learning (production would be hours).
+SENSOR_POKE_SECONDS = 60
+SENSOR_TIMEOUT_SECONDS = 10 * 60
+
 # Gate G2: expected field counts (and whether the file has a header). Checked before COPY.
 SOURCE_CONTRACTS = {
     "sales": {"columns": 16, "has_header": True},
@@ -24,8 +29,3 @@ SOURCE_CONTRACTS = {
     "item_master": {"columns": 15, "has_header": True},
     "store_master": {"columns": 14, "has_header": True},
 }
-
-# FileSensor (gate G1). The timeout is the arrival deadline for a day's files; it is short so
-# you can watch a timeout happen while learning (production would be hours).
-SENSOR_POKE_SECONDS = 60
-SENSOR_TIMEOUT_SECONDS = 10 * 60

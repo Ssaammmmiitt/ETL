@@ -315,14 +315,15 @@ Positional loads suit files with no header and a fixed, contracted column order.
 changes, the data silently goes into the wrong columns, so pair it with validation (gate G2).
 `_INGEST_TS` is filled by the column default (`CURRENT_TIMESTAMP()`).
 
-**Why this project loads every file with `SELECT $1, $2, ...`** (a "transforming" COPY):
+**Why this project loads every file with** `SELECT $1, $2, ...` (a "transforming" COPY):
+
 - By-name loading can only add *file* metadata (`INCLUDE_METADATA`), not constants, so it can't
-  fill the required `_INGEST_DT` and `_BATCH_ID` columns.
+fill the required `_INGEST_DT` and `_BATCH_ID` columns.
 - The `SELECT` lets us add all lineage columns in the same statement.
-- Trade-off: with a `SELECT`, Snowflake **ignores `ERROR_ON_COLUMN_COUNT_MISMATCH`** (a missing
-  column just becomes `NULL`). So gate G2 needs its own explicit check (Lesson 5).
+- Trade-off: with a `SELECT`, Snowflake **ignores** `ERROR_ON_COLUMN_COUNT_MISMATCH` (a missing
+column just becomes `NULL`). So gate G2 needs its own explicit check (Lesson 5).
 - `VALIDATION_MODE` and `VALIDATE()` don't work with a `SELECT` either; query the staged file
-  directly instead: `SELECT $1, $2 FROM @stage/file (FILE_FORMAT => 'FF_NAME')`.
+directly instead: `SELECT $1, $2 FROM @stage/file (FILE_FORMAT => 'FF_NAME')`.
 
 **Load history and re-runs:**
 
@@ -553,13 +554,13 @@ quarantined amount back so Gold still ties to source.
 `REASON_CD VARCHAR(100)` (`NULL_ITEM_ID`), `RAW_RECORD VARIANT` (the whole STG row, including
 `_SOURCE_ROW_NUM`), `QUARANTINED_TS TIMESTAMP_NTZ`. Kept 90 days.
 
-| Planted defect (Lesson 10) | Gate | Action |
+| Planted defect (data in L6 `generate_complex.py`; gates/SCD2 proven L7–L10) | Gate | Action |
 |---|---|---|
-| Two sales rows with null `ITEM_ID` | G3 | quarantine row |
-| One sale with negative `SOLD_QTY` | G6 | quarantine row |
-| One sale for an item missing from the item master | G7 | quarantine + alert |
-| One duplicated transaction line | G4 | keep latest, quarantine the duplicate |
-| One store moves to another city | (not a defect) | SCD2 version on `DIM_LOCN` |
+| Two sales rows with null `ITEM_ID` (2026-11-11: `T…-1001-0003` L1, `T…-1001-0004` L1) | G3 | quarantine row |
+| One sale with negative `SOLD_QTY` (2026-11-11: `T…-1001-0005` L3) | G6 | quarantine row |
+| One sale for item `199999` missing from item master (2026-11-12: `T…-1002-0003` L1) | G7 | quarantine + alert |
+| One duplicated transaction line (2026-11-11: `T…-1001-0008` L2 twice; 811 sales rows) | G4 | keep latest, quarantine the duplicate |
+| Store `1008` moves `CITY_ID` Spokane→Portland from 2026-11-13 | (not a DQ fail) | SCD2 version on `DIM_LOCN` |
 
 ### 5.2 Quality gates (red hexagons on the diagram)
 

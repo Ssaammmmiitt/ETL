@@ -2,7 +2,8 @@
 secrets/*
 !secrets/.gitkeep
 data/landing/*.csv
-data/archive/*.csv
+data/archive/**/*.csv
+data/history/
 logs/
 config/
 __pycache__/
