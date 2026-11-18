@@ -12,15 +12,15 @@ from include.medallion.config import SNOWFLAKE_CONN_ID, SOURCES, SQL_DIR
 
 
 @dag(
-    dag_id="lesson02_stg_setup",
+    dag_id="02_stg_setup",
     start_date=datetime(2026, 11, 1),
     schedule=None,
     catchup=False,
     template_searchpath=[str(SQL_DIR)],
     default_args={"retries": 1, "retry_delay": timedelta(minutes=1)},
-    tags=["medallion", "lesson02"],
+    tags=["medallion", "02"],
 )
-def lesson02_stg_setup():
+def stg_setup():
     create_file_formats = SQLExecuteQueryOperator(
         task_id="create_file_formats",
         conn_id=SNOWFLAKE_CONN_ID,
@@ -36,4 +36,4 @@ def lesson02_stg_setup():
         create_file_formats >> create_table
 
 
-lesson02_stg_setup()
+stg_setup()

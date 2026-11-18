@@ -1,13 +1,16 @@
 # Agent handoff: airflow-medallion
 
-Attach this file at the start of a new chat. Last updated **17 Nov 2026**: Lesson 1 done,
-Lesson 2 written (with valid outliers + planted anomalies) and **waiting for the learner's checkpoint**.
+Attach this file at the start of a new chat. Last updated **18 Nov 2026**: Lessons 1–4 done,
+Lesson 5 (Bronze idempotent load / G2 / archive) written and **waiting for the learner's checkpoint**.
+DAG files and dag_ids use `01_`, `02_`, … (no `lesson` prefix).
 
 ## 1. Start here
 
 1. Look at [`architecture-Simple view.png`](architecture-Simple%20view.png): the target. Every name comes from it.
 2. Read this file → [`LESSONS.md`](LESSONS.md) (checklist, curriculum) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest file in [`lessons/`](lessons/).
-3. **Do not start Lesson 3** until the learner pastes the Lesson 2 checkpoint (section 7).
+3. **Do not start Lesson 6** until the learner confirms the Lesson 5 checkpoint (section 7).
+   Lesson files share one structure: header table → idea + basic terms → code walkthrough → run it → points to remember → exercises → checkpoint → troubleshooting.
+   DAG naming: `dags/NN_<topic>.py` with `dag_id="NN_<topic>"` and tags `["medallion", "NN"]` — never `lessonNN_`.
 4. After each lesson: write `context/lessons/NN_<topic>.md`, update the `LESSONS.md` checklist and status, fix or add concepts in `THEORY.md`, update section 7 here, and keep `README.md` (project root) in sync.
 
 ## 2. The learner
@@ -24,7 +27,7 @@ Lesson 2 written (with valid outliers + planted anomalies) and **waiting for the
 | Lesson format | (1) concept, (2) code/SQL with paths, (3) observe/verify, (4) exercise, then a **checkpoint**; then **stop** |
 | Learner runs everything | *"ill do the manual running work, just make edits and guide me on the execution and meaning of these changes"*. Agent edits files and gives exact PowerShell or Snowsight steps plus what each result means. Local Python checks that never touch Snowflake are fine |
 | Keep it simple | No pytest or `tests/`, no Dockerfile, no defensive extras (argparse, regex validation, helper layers). Plain `for` loops, SQL in files, short DAGs |
-| Explain | The *why* of each decision and each DAG task; **data types and why** for every table ([THEORY 3.10](THEORY.md#sec-3-10-data-types)) |
+| Explain | The *why* of each decision and each DAG task; **data types and why** for every table ([THEORY 3.10](THEORY.md#310-data-types-and-why-we-pick-them)) |
 | Diagram names | STG (Bronze) / TMP (Silver) / TGT and Aggregate (Gold); the diagram's columns and types; gates G1–G10, plus G11 and G12 (departures) |
 | One SQL file per table | `include/sql/ddl/<layer>/<table>.sql`, `load/<layer>/<table>.sql`, `gates/gNN_<rule>.sql`, `checks/`. File names are the table name in lower case |
 | No hard-coding in DAGs | No credentials, paths, Snowflake objects or table names. SQL uses `{{ var.json.medallion_config.* }}`. Check in section 6 |
@@ -36,8 +39,9 @@ Lesson 2 written (with valid outliers + planted anomalies) and **waiting for the
 | Topic | Decision (why) |
 |---|---|
 | Airflow | Existing **3.3.2** official image + Docker Compose (CeleryExecutor). Teach the brief's 2.x names next to the 3.x ones |
+| History | **1 Jan – 9 Nov 2026, every day, ~1,000 sales lines/day**, generated in L6 and loaded once in L9 by an initial-load DAG (realistic Gold + baseline for statistical outlier checks; L2 stays one day) |
 | Dates | Weekdays **10, 11, 12, 13, 16 Nov 2026**; schedule `0 6 * * 1-5`; `airflow backfill create --dag-id medallion_daily --from-date 2026-11-10 --to-date 2026-11-16`; `max_active_runs=1` (SCD2 and soft-close depend on day order) |
-| Stages | `@my_int_stage` runs the pipeline. `@my_ext_stage` + storage integration are written and explained but not run (no cloud bucket) |
+| Stages | Internal stage `@my_int_stage` only. **External stage and storage integration dropped** by the learner on 18 Nov (no S3/Azure/GCS): departure 9. Don't teach or write them; list it in README limitations |
 | Auth | Key pair, `AIRFLOW_SVC` `TYPE = SERVICE`; key file `secrets/rsa_key.p8` mounted read-only; connection extra `private_key_file` |
 | Connections | Imported from `secrets/connections.json` (template `include/config/connections.example.json`) |
 | Waiting | Teach FileSensor and Assets; **use FileSensor** (mapped ×4, `mode='reschedule'`) plus a `LIST @stage` check |
@@ -45,7 +49,7 @@ Lesson 2 written (with valid outliers + planted anomalies) and **waiting for the
 | `@task.snowflake` | Doesn't exist: use `SQLExecuteQueryOperator` or `@task` + `SnowflakeHook` |
 | Tests | Replaced by `airflow dags list-import-errors`, the `Select-String` check, and DQ/recon SQL run as DAG tasks |
 | Schemas | `BRONZE`, `SILVER`, `GOLD`, `AUDIT`. `TMP_QUARANTINE` in SILVER; recon results in AUDIT |
-| Departures ([THEORY 1.4](THEORY.md#sec-1-4-departures)) | (1) DIM_DAY seed goes straight to Gold. (2) `ITEM_DESC` is SCD1 inside SCD2 `DIM_ITEM`. (3) `FCT_INVENTORY` soft-close (`EFFECTIVE_END_DT`, `CURRENT_FLG`). (4) Silver = transient tables, not Parquet. (5) A corrected file replaces day D in STG (bad file kept in archive). (6) G11 reconciliation. (7) Brief "district change" = store moves `CITY_ID`. (8) G12 configurable outlier limits |
+| Departures ([THEORY 1.4](THEORY.md#14-departures-and-where-the-brief-and-the-diagram-differ)) | (1) DIM_DAY seed goes straight to Gold. (2) `ITEM_DESC` is SCD1 inside SCD2 `DIM_ITEM`. (3) `FCT_INVENTORY` soft-close (`EFFECTIVE_END_DT`, `CURRENT_FLG`). (4) Silver = transient tables, not Parquet. (5) A corrected file replaces day D in STG (bad file kept in archive). (6) G11 reconciliation. (7) Brief "district change" = store moves `CITY_ID`. (8) G12 configurable outlier limits. (9) No external stage (internal only) |
 
 **Airflow 2.x → 3.3 names:**
 
@@ -82,11 +86,12 @@ Lesson 2 written (with valid outliers + planted anomalies) and **waiting for the
 ```
 airflow-medallion/
 ├── README.md  docker-compose.yaml  .env  .env.example  .gitignore
-├── context/      AGENT_CONTEXT, LESSONS, ASSUMPTIONS, THEORY, architecture-*.png/.drawio/.md, lessons/01_environment.md, 02_stg_tables.md
-├── dags/         lesson01_connection_check.py (whoami >> check_schemas)
-│                 lesson02_stg_setup.py (create_file_formats >> 4 × create_stg_<source>)
+├── context/      AGENT_CONTEXT, LESSONS, ASSUMPTIONS, THEORY, architecture-*.png/.drawio/.md, lessons/01_environment.md, 02_stg_tables.md, 03_stages_copy.md
+├── dags/         01_connection_check.py … 05_bronze_load.py (dag_id = file stem; no "lesson" prefix)
 ├── include/medallion/config.py   include/config/variables.json, connections.example.json
-├── include/sql/  setup/00_bootstrap.sql, 01_file_formats.sql · ddl/bronze/stg_*.sql (4) · checks/whoami.sql
+├── include/sql/  setup/00_bootstrap.sql, 01_file_formats.sql, 02_stages.sql
+│                 ddl/bronze/stg_*.sql (4) · load/bronze/stg_*.sql (4 COPY) · stage/put_file.sql (params.source)
+│                 checks/whoami.sql, list_stage.sql
 ├── scripts/      generate_simple.py (L2), generate_seed_dim_day.py
 ├── data/         landing/ (git-ignored) · archive/ · seed/seed_dim_day.csv (versioned)
 └── secrets/  plugins/
@@ -101,7 +106,16 @@ airflow-medallion/
   - `_INGEST_TS TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()`
   - `_BATCH_ID VARCHAR` (= `run_id`)
 - Column counts (file columns + 5): SALES 16 → 21, INVENTORY 8 → 13, ITEM_MASTER 15 → 20, STORE_MASTER 14 → 19.
-- `CREATE OR REPLACE` only while empty; use `ALTER` after L5.
+- `CREATE OR REPLACE` only while empty; use `ALTER` once loaded (they hold data from L3).
+
+**Stage and COPY (L3):**
+- `MY_INT_STAGE` in BRONZE (`CREATE STAGE IF NOT EXISTS`), one folder per date: `MY_INT_STAGE/2026-11-10/<source>_20261110.csv.gz`.
+- PUT: `'file://{landing_path}/{params.source}_{ds_nodash}.csv'`, `AUTO_COMPRESS = TRUE`, `OVERWRITE` from `params.overwrite` (`FALSE` in L3/L4, `TRUE` in L5).
+- **All 4 COPYs are transforming** (`SELECT $1..$n` + lineage). L5 load SQL is idempotent: `DELETE WHERE _INGEST_DT = ds` then `COPY ... FORCE = TRUE` (`split_statements=True`).
+- G2: `SOURCE_CONTRACTS` in `config.py`; `g2_check_file` uses Python `csv` on the landing file (transforming COPY ignores column-count mismatch).
+- Archive: after successful loads, `data/landing` → `data/archive/<ds>/`.
+
+**THEORY anchors:** THEORY now uses plain Markdown headings (no HTML ids). Link with GitHub-style slugs, e.g. `../THEORY.md#34-file-formats-and-copy-into`, `#310-data-types-and-why-we-pick-them`, `#56-outliers-vs-anomalies-and-the-configurable-gate-g12`.
 
 **TMP/TGT types (diagram):**
 
@@ -163,7 +177,7 @@ G6: 0 violations; no negative net.
 - 0.005 kg sale (`T20261110-1002-0026` line 2).
 - Stock 0 (100011@1001), stock 25,000 (100021@1001), and reserved = on hand (100031@1001).
 
-**Planted anomalies (gate G12 solves them in L7; reason codes in [THEORY 5.6](THEORY.md#sec-5-6-outliers)):**
+**Planted anomalies (gate G12 solves them in L7; reason codes in [THEORY 5.6](THEORY.md#56-outliers-vs-anomalies-and-the-configurable-gate-g12)):**
 
 | # | Row | Problem | Reason code |
 |---|---|---|---|
@@ -177,38 +191,28 @@ G6: 0 violations; no negative net.
 
 ### Status
 
-- **Lesson 1 done.** Project simplified (no pytest), restructured to the diagram, docs moved to `context/`.
-- **Lesson 2 checkpoint pending.** The learner runs steps 2.3–2.6, including dropping the old `BRONZE.ITEM_MASTER / STORE_MASTER / POS_SALES / INVENTORY_SNAPSHOT`.
+- **Lessons 1–4 done** (18 Nov 2026).
+- **Lesson 5 checkpoint pending** (`context/lessons/05_bronze_load.md`). Run: `airflow dags test 05_bronze_load 2026-11-10` (restore landing from `data/archive/2026-11-10` or regenerate first if needed).
 
 **Expected checkpoint replies:**
-1. Generator: 5000 / 1502 / 101 / 25 rows, net `2843788.51`, `extremes:` line; seed 730.
-2. `lesson02_stg_setup`: 5 tasks green.
-3. 2 file formats; 4 `STG_*` tables.
-4. Hard-coding check: no output.
-5. Exercise answers:
+1. First run green; files under `data/archive/2026-11-10/`.
+2. Counts 5000 / 1502 / 101 / 25; net 2843788.51.
+3. Second run (copy archive → landing): same counts/sum.
+4. Hard-coding check clean; exercises 1–6 (FORCE alone duplicates; DELETE+FORCE is the pair; G2 catches extra fields; archive after load).
 
-| Ex. | Expected answer |
-|---|---|
-| 2 | `ALTER TABLE ... ADD COLUMN` |
-| 3 | STG text so a bad value can't reject a row; `NUMBER(18,3)` for weighed items; `LOCN_ID` is a label; `_INGEST_DT` is filtered by date → `DATE`; `_BATCH_ID` is a label |
-| 4 | Net 2843788.51; 12 zero-net lines; Gold 204,298.00 + quarantined 2,639,490.51 |
-| 5 | (a) outlier, passes; (b) defect, G6; (c) outlier, passes and counts in recon; (d) defect, G3; (e) G6b alert, still loads; (f) anomaly, G12 `QTY_TOO_HIGH`; (g) anomaly, G12 `PRICE_TOO_LOW` |
-| 6 | Top line is A1. The ratio rule proves it: 1000 × the reference price. A fixed price limit would also reject the real 2,499.99 item. To allow bulk 1,500, change `max_sold_qty` in the Variable and re-import; **not** the SQL or the DAG |
-| 7 | `STG_STORE_MASTER` → `TMP_LOCN_HIER` → `DIM_DIVISION`, `DIM_REGION`, `DIM_CITY`, `DIM_LOCN`; a column-count change is caught by G2 |
-
-**Next:** Lesson 3 (stages, PUT/LIST/COPY, positional load). It is the first time data reaches Snowflake.
+**Next:** Lesson 6 (complex generator + history 1 Jan–9 Nov).
 
 ## 8. Plan for the remaining lessons
 
 | # | Lesson | Key outputs |
 |---|---|---|
-| 3 | Stages | `setup/02_stages.sql`: `@my_int_stage` (PUT, LIST, REMOVE); `@my_ext_stage` + storage integration (explained, not run). COPY by name (`MATCH_BY_COLUMN_NAME`) vs **positional** `$1..$8` with `METADATA$FILENAME`, `METADATA$FILE_ROW_NUMBER` |
-| 4 | Waiting (G1) | FileSensor mapped over `SOURCES` (`mode='reschedule'`, `poke_interval`, `timeout`); Assets and the trade-off; `LIST` assertion |
-| 5 | Bronze DAG (G2) | `put_to_stage`, `load_stg.expand(source=SOURCES)`: `DELETE WHERE _INGEST_DT = ds` + `COPY ... FORCE = TRUE`; lineage columns; archive files |
-| 6 | Generator v2 | `generate_complex.py`: 5 dates, returning customers, price and promo changes, changing stock, outliers kept |
+| 3 | Stages (**written**) | See "Stage and COPY (L3)" in section 6 |
+| 4 | Waiting (G1) (**written**) | `dags/04_waiting.py`: FileSensor.partial.expand ×4; PUT; `assert_files_on_stage` (LIST + size); Assets taught in notes only |
+| 5 | Bronze (**written**) | `dags/05_bronze_load.py`: wait → PUT overwrite → G1 assert → G2 csv contract → DELETE+FORCE load → archive |
+| 6 | Generator v2 | `generate_complex.py` (deterministic): **history 1 Jan – 9 Nov 2026, every day, ~1,000 sales lines/day** (learner chose this 18 Nov) with weekend peaks, price/promo changes, November season; plus the 5 daily dates; returning customers, changing stock, outliers kept |
 | 7 | Silver TMP | Transient `TMP_SALES_LINE` (delta), `TMP_CUSTOMER` (members, `LAST_SEEN_DT`), `TMP_ITEM_LOC_SNAPSHOT` (`AVAILABLE_QTY`), `TMP_ITEM_HIER` and `TMP_LOCN_HIER` (overwrite); `TMP_QUARANTINE` (`GATE_ID`, `REASON_CD`, `RAW_RECORD = OBJECT_CONSTRUCT(*)`); gates G3–G6 and G6b. **G12 `gates/g12_outlier_limits.sql` reads `outlier_rules`, quarantines A1–A4, alerts.** Identity: STG = TMP + quarantined |
 | 8 | Gold dimensions | `DIM_DEPARTMENT → CATEGORY → SUBCATEGORY → ITEM` ‖ `DIM_DIVISION → REGION → CITY → LOCN` (SCD2: `EFFECTIVE_START_DT/END_DT`, `CURRENT_FLG`, `INSERT_TS/UPDATE_TS`); `ITEM_DESC` SCD1; `DIM_CUSTOMER` SCD1 MERGE; `DIM_DAY` from the seed; sequence vs `HASH` keys; MERGE vs INSERT OVERWRITE vs `NOT EXISTS` |
-| 9 | Gold facts + full DAG | `FCT_SALES` (MERGE on `TRANSACTION_ID, LINE_NUM`, `CLUSTER BY (DAY_KY)`), `FCT_INVENTORY` soft-close, `FCT_PRICE`; G7 (keys resolve), G8 (inventory ±20%); `medallion_daily` wait → bronze → silver → gold |
+| 9 | Gold facts + full DAG | `FCT_SALES` (MERGE on `TRANSACTION_ID, LINE_NUM`, `CLUSTER BY (DAY_KY)`), `FCT_INVENTORY` soft-close, `FCT_PRICE`; G7 (keys resolve), G8 (inventory ±20%); `medallion_daily` wait → bronze → silver → gold; **separate one-time initial-load DAG for the history** (bulk COPY, not 313 backfill runs). History also enables the statistical G12 method (item median ± spread) |
 | 10 | Very complex data + defects | `generate_very_complex.py`: 2 null `ITEM_ID` (G3), 1 negative qty (G6), 1 orphan item (G7), 1 duplicate line (G4), 1 store changes `CITY_ID` (SCD2); PK checker `gates/pk_<table>.sql`; G10 |
 | 11 | Aggregate + recon + alerting | `AGG_DAILY_ITEM_LOCN_SALES`, `VW_DAILY_ITEM_LOCN_SALES`; G9; G11 writes `AUDIT.RECON_DAILY_NET_SALES (DAY_KY, VARIANCE_AMT)` = STG net − quarantined net (incl. G12) − FCT net; `reconcile` returns bool → `@task.branch` → `recon_passed` or `send_alert` (Mailpit) → `fail_run`; `on_failure_callback` |
 | 12 | Idempotency + reload of a bad day | Counts and sums before and after a second run must match; the diagram's reload policy for day D |
@@ -236,6 +240,8 @@ wait_for_file[x4] (G1) → put_to_stage → assert_files_on_stage → load_stg.e
   - `DESC USER` must run as `SECURITYADMIN`.
   - `RSA_PUBLIC_KEY` takes the one-line body only, without the `-----BEGIN` lines.
 - Outlier limits are data, not code: change them in `variables.json`, then re-import the Variable.
+- `PUT` / `GET` SQL must start with the command (no leading `--` comments). Otherwise snowflake-connector returns `Unsupported feature 'unsupported_requested_format:snowflake'` because it fails to intercept the upload client-side (hit in L3, 18 Nov).
+- Jinja still renders SQL comments: never put `{{ }}` inside a `--` comment.
 
 ## 10. Original brief (verbatim)
 

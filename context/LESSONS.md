@@ -25,18 +25,18 @@ New chat with an agent? Give it [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) first.
 
 | Topic | Decision | Why |
 |---|---|---|
-| Architecture | Follow the simple-view diagram: STG → TMP → TGT → Aggregate, names, gates G1–G10, retention, reload policy | One shared picture; see [THEORY 1](THEORY.md#sec-1-medallion) |
-| Brief vs diagram | Diagram names everywhere; brief requirements kept as documented departures | [THEORY 1.4](THEORY.md#sec-1-4-departures) |
+| Architecture | Follow the simple-view diagram: STG → TMP → TGT → Aggregate, names, gates G1–G10, retention, reload policy | One shared picture; see [THEORY 1](THEORY.md#1-medallion-architecture-stg--tmp--tgt--aggregate) |
+| Brief vs diagram | Diagram names everywhere; brief requirements kept as documented departures | [THEORY 1.4](THEORY.md#14-departures-and-where-the-brief-and-the-diagram-differ) |
 | Airflow | 3.3.2 (existing Docker Compose stack, official image) | Satisfies "2.7+"; 2.x names are mapped below |
 | Backfill dates | 10, 11, 12, 13 and 16 Nov 2026 | The 5 weekdays in 10–16 Nov; schedule `0 6 * * 1-5` produces exactly these |
-| External stage | Full storage-integration code written and explained; pipeline runs on the internal stage | No cloud bucket available; Snowflake external stages only accept S3, Azure or GCS |
+| External stage | **Dropped** (departure 9); the pipeline uses only the internal stage | No S3, Azure Blob or GCS bucket available, and external stages require one |
 | Snowflake auth | Key pair for a `TYPE = SERVICE` user | No password, no MFA prompts |
 | Local email | Mailpit container (Lesson 11) | Free SMTP server with a web inbox |
 | Keep it simple | Official image, no pytest, plain readable code, only features the brief and diagram need | Learn more by using fewer tools |
 | Testing deliverable | Gates and reconciliation are **SQL tasks in the DAG**, plus two one-line checks (L1) | Same guarantees without a Python test framework |
-| Data types | As on the diagram: STG all `VARCHAR`; TMP/TGT ids `VARCHAR(50)`, money `NUMBER(18,2)`, qty `NUMBER(18,3)`, keys `NUMBER(38,0)`, `DAY_KY NUMBER(8,0)`, `DATE`, `BOOLEAN`, `TIMESTAMP_NTZ` | [THEORY 3.10](THEORY.md#sec-3-10-data-types) |
+| Data types | As on the diagram: STG all `VARCHAR`; TMP/TGT ids `VARCHAR(50)`, money `NUMBER(18,2)`, qty `NUMBER(18,3)`, keys `NUMBER(38,0)`, `DAY_KY NUMBER(8,0)`, `DATE`, `BOOLEAN`, `TIMESTAMP_NTZ` | [THEORY 3.10](THEORY.md#310-data-types-and-why-we-pick-them) |
 | Quarantine | `SILVER.TMP_QUARANTINE` with `GATE_ID` and `REASON_CD`; never drop | [THEORY 5.1](THEORY.md#51-quarantine-never-drop) |
-| Outliers | Valid extremes are kept; anomalies are caught by gate G12, limits in `medallion_config.outlier_rules` | [THEORY 5.6](THEORY.md#sec-5-6-outliers) |
+| Outliers | Valid extremes are kept; anomalies are caught by gate G12, limits in `medallion_config.outlier_rules` | [THEORY 5.6](THEORY.md#56-outliers-vs-anomalies-and-the-configurable-gate-g12) |
 
 ### Airflow 2.x names in the brief vs Airflow 3.3
 
@@ -72,9 +72,9 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 ### Pipeline shape
 
 - [ ] Stages `wait → bronze → silver → gold → reconcile` (L9, L11)
-- [ ] Sensor on all four files with `timeout`, `poke_interval`, `mode='reschedule'` (gate G1) (L4)
+- [~] Sensor on all four files with `timeout`, `poke_interval`, `mode='reschedule'` (gate G1) (L4: `04_waiting`)
 - [ ] Datasets/Assets taught, trade-off explained, one approach picked (L4)
-- [ ] Mapped ingest: one STG load task per file via Dynamic Task Mapping (L5)
+- [~] Mapped ingest: one STG load task per file (L5: `load_stg_*`; sensors use `.expand`)
 - [ ] Silver TMP: clean, dedupe, validate, gates G2–G6 (L7)
 - [ ] Gold TGT: dimensions first, then facts (L8, L9)
 - [ ] Gold Aggregate: `AGG_DAILY_ITEM_LOCN_SALES` + `VW_DAILY_ITEM_LOCN_SALES`, gate G9 (L11)
@@ -97,13 +97,13 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 
 ### Snowflake
 
-- [ ] Internal stage `@my_int_stage` (L3)
-- [ ] External stage `@my_ext_stage` + storage integration (written + explained) (L3)
-- [ ] `LIST @stage` used in sensor/validation logic (L3, L4)
+- [~] Internal stage `@my_int_stage` (L3: `MY_INT_STAGE`, one folder per date, PUT + COPY)
+- [x] ~~External stage `@my_ext_stage` + storage integration~~: dropped by the learner on 18 Nov 2026 (no cloud bucket); departure 9 in THEORY 1.4, listed in README limitations (L14)
+- [~] `LIST @stage` used in sensor/validation logic (L3 list; L4 `assert_files_on_stage` = G1 presence)
 - [ ] Surrogate keys `*_KY` for every DIM (sequence and hash compared) (L8)
 - [ ] SCD2 on hierarchy dims; planted change on `DIM_LOCN` (L8, L10)
 - [ ] SCD1: `DIM_CUSTOMER` and `DIM_ITEM.ITEM_DESC` (L8)
-- [~] Positional load: `COPY INTO STG_INVENTORY` by position (L2 file format + headerless file; L3 COPY)
+- [~] Positional load: `COPY INTO STG_INVENTORY` by position (L2 file format + headerless file; L3 COPY `$1..$8` written; all 4 files load positionally to add lineage)
 - [ ] Hierarchy parent → child keys preserved (L8)
 - [ ] Parallel dimension loads (task groups / mapping) (L8)
 - [ ] Joins and rollup for fact builds and the aggregate (L9, L11)
@@ -134,7 +134,7 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 - [ ] Deterministic surrogate keys vs sequence keys on re-runs (L8)
 - [ ] SCD2 effective-date recompute on re-run (L10)
 - [ ] Partition pruning by `_INGEST_DT` / `DAY_KY` (L5, L7)
-- [ ] `COPY INTO ... FORCE = TRUE` vs dedupe via staging (L5)
+- [~] `COPY INTO ... FORCE = TRUE` after `DELETE WHERE _INGEST_DT` (L5)
 
 ### Deliverables
 
@@ -165,9 +165,12 @@ airflow-medallion/
 │   ├── architecture*.png/.md/.drawio   the target architecture
 │   └── lessons/                  one file per lesson
 ├── dags/
-│   ├── lesson01_connection_check.py
-│   ├── lesson02_stg_setup.py     file formats + STG DDL
-│   └── medallion_daily.py        the final pipeline (built up from L4)
+│   ├── 01_connection_check.py
+│   ├── 02_stg_setup.py           file formats + STG DDL
+│   ├── 03_stage_load.py          stage, PUT, LIST, COPY into STG
+│   ├── 04_waiting.py             FileSensor (G1) + PUT + assert on stage
+│   ├── 05_bronze_load.py         wait → PUT → G1/G2 → DELETE+FORCE COPY → archive
+│   └── medallion_daily.py        the final pipeline (assembled from L5 onward)
 ├── include/
 │   ├── medallion/config.py       connection ids, Variable name, SQL_DIR, SOURCES
 │   ├── config/                   variables.json, connections.example.json
@@ -176,11 +179,12 @@ airflow-medallion/
 │       ├── ddl/bronze/           stg_<source>.sql            (L2)
 │       ├── ddl/silver/           tmp_<table>.sql             (L7)
 │       ├── ddl/gold/             dim_*.sql, fct_*.sql, agg_*.sql, vw_*.sql (L8–L11)
-│       ├── load/bronze/          stg_<source>.sql  COPY      (L5)
+│       ├── stage/                put_file.sql (one PUT for every source, via params) (L3)
+│       ├── load/bronze/          stg_<source>.sql  COPY      (L3; idempotent in L5)
 │       ├── load/silver/          tmp_<table>.sql             (L7)
 │       ├── load/gold/            dim_*.sql, fct_*.sql, agg_*.sql (L8–L11)
 │       ├── gates/                g01_*.sql … g11_*.sql, pk_*.sql
-│       └── checks/               whoami.sql (smoke test)
+│       └── checks/               whoami.sql (smoke test), list_stage.sql (L3)
 ├── scripts/                      generate_simple.py, generate_seed_dim_day.py (later: complex, very complex)
 ├── data/landing/                 the four daily drops land here (FileSensor watches it)
 ├── data/archive/                 original files kept after a successful STG load (L5)
@@ -236,14 +240,14 @@ Theory column = sections of [`THEORY.md`](THEORY.md) to read before the lesson.
 | # | Lesson | Data level | Theory | Status |
 |---|---|---|---|---|
 | 1 | [Environment, connections, variables](lessons/01_environment.md) | none | 1, 2.1, 2.3, 2.6, 3.1, 3.2, 8 | Done (17 Nov 2026) |
-| 2 | [Simple data + STG tables + file formats](lessons/02_stg_tables.md) | Simple (1 day) | 1, 3.4, 3.7, 3.10 | **In progress: waiting for your checkpoint** (re-done to the diagram's names) |
-| 3 | Stages: `PUT`/`LIST`/`COPY`, external stage + storage integration, positional load into `STG_INVENTORY` | Simple | 3.3, 3.4 | Pending |
-| 4 | Waiting: FileSensor vs Assets, `LIST @stage`, gate G1 | Simple | 2.7, 2.8, 3.3, 5.2 | Pending |
-| 5 | Bronze DAG: mapped STG load, load history vs `FORCE`, `_INGEST_DT`, archive, gate G2 | Simple | 2.4, 2.5, 2.9, 3.4, 3.5, 6 | Pending |
-| 6 | Generator v2: 5 days, hierarchies, customers, price changes | Complex | 4.1, 4.3 | Pending |
+| 2 | [Simple data + STG tables + file formats](lessons/02_stg_tables.md) | Simple (1 day) | 1, 3.4, 3.7, 3.10 | Done (18 Nov 2026) |
+| 3 | [Internal stage: `PUT`/`LIST`/`COPY`, positional load](lessons/03_stages_copy.md) | Simple (1 day) | 3.3, 3.4 | Done (18 Nov 2026) |
+| 4 | [Waiting: FileSensor vs Assets, gate G1](lessons/04_waiting.md) | Simple (1 day) | 2.7, 2.8, 3.3, 5.2 | Done (18 Nov 2026) |
+| 5 | [Bronze load: idempotent COPY, G2, archive](lessons/05_bronze_load.md) | Simple (1 day) | 2.4, 2.9, 3.4, 3.5, 5.2, 6 | **In progress: waiting for your checkpoint** |
+| 6 | Generator v2: **history 1 Jan – 9 Nov** (every day, ~1,000 lines/day, weekly pattern, price changes, holiday season) + the 5 daily dates; customers, hierarchies | Complex | 4.1, 4.3 | Pending |
 | 7 | Silver: the 5 TMP tables + `TMP_QUARANTINE`, gates G3–G6 and G12 (configurable outliers) | Complex | 3.6, 3.7, 3.10, 5.1, 5.2, 5.6 | Pending |
 | 8 | Gold TGT dimensions: 8 hierarchy dims (SCD2), `DIM_CUSTOMER` (SCD1), `DIM_DAY` seed, surrogate keys, parallel loads | Complex | 4.2, 4.3, 4.4, 3.6, 2.9, 6 | Pending |
-| 9 | Gold TGT facts: `FCT_SALES`, `FCT_INVENTORY` (soft-close), `FCT_PRICE`; gates G7, G8; full wait → gold DAG | Complex | 4.1, 4.5, 3.6, 5.2 | Pending |
+| 9 | Gold TGT facts: `FCT_SALES`, `FCT_INVENTORY` (soft-close), `FCT_PRICE`; gates G7, G8; full wait → gold DAG; **one-time initial load of the history** (bulk COPY) | Complex | 4.1, 4.5, 3.6, 5.2 | Pending |
 | 10 | Five planted defects, SCD2 on `DIM_LOCN`, PK checker, gate G10 | Very complex | 4.4, 4.6, 3.8, 5 | Pending |
 | 11 | Aggregate + view (G9), reconciliation 2×5 table (G11), return-flag branch, SMTP alert | Very complex | 4.7, 5.4, 2.10, 2.11 | Pending |
 | 12 | Idempotency proof and the reload of one bad day | Very complex | 6, 5.5 | Pending |

@@ -1,0 +1,7 @@
+-- Gate G1 (presence half): rows returned by LIST for the day's stage folder.
+-- The 04_waiting assert_files_on_stage task runs LIST, then this shape of query, on ONE session
+-- (RESULT_SCAN needs LAST_QUERY_ID from that LIST). It fails the DAG if count <> 4 or size = 0.
+--
+-- SELECT "name", "size"
+-- FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+-- ORDER BY 1;

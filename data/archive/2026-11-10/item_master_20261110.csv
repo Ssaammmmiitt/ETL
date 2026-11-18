@@ -1,0 +1,102 @@
+ITEM_ID,ITEM_NM,ITEM_DESC,BRAND_NM,ITEM_TYPE,SUBCATEGORY_ID,SUBCATEGORY_NM,SUBCATEGORY_DESC,CATEGORY_ID,CATEGORY_NM,CATEGORY_DESC,DEPARTMENT_ID,DEPARTMENT_NM,DEPARTMENT_DESC,ACTIVE_FLG
+100001,Family Milk 1,"Family Milk, pack 2",Great Value,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100002,Value Eggs 2,"Value Eggs, pack 3",Organic Valley,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100003,Premium Cheese 3,"Premium Cheese, pack 4",La Brea,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100004,Daily Bread 4,"Daily Bread, pack 5",Duracell,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100005,Select Pastry 5,"Select Pastry, pack 6",Bounty,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100006,Fresh Fruit 6,"Fresh Fruit, pack 1",Tide,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100007,Home Vegetables 7,"Home Vegetables, pack 2",Sony,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100008,Essential Batteries 8,"Essential Batteries, pack 3",Apple,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100009,Bundle Cables 9,"Bundle Cables, pack 4",Nike,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100010,Classic Paper Goods 10,"Classic Paper Goods, pack 5",FreshCatch,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100011,Family Cleaning 11,"Family Cleaning, pack 6",Ranchers,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100012,Value Basics 12,"Value Basics, pack 1",Kirkland,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100013,Premium Socks 13,"Premium Socks, pack 2",Great Value,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100014,Daily Beef 14,"Daily Beef, pack 3",Organic Valley,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100015,Select Chicken 15,"Select Chicken, pack 4",La Brea,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100016,Fresh Fish 16,"Fresh Fish, pack 5",Duracell,PERISHABLE,SC701,Fish,Fish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100017,Home Shellfish 17,"Home Shellfish, pack 6",Bounty,PERISHABLE,SC702,Shellfish,Shellfish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100018,Essential Milk 18,"Essential Milk, pack 1",Tide,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100019,Bundle Eggs 19,"Bundle Eggs, pack 2",Sony,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100020,Classic Cheese 20,"Classic Cheese, pack 3",Apple,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100021,Family Bread 21,"Family Bread, pack 4",Nike,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100022,Value Pastry 22,"Value Pastry, pack 5",FreshCatch,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100023,Premium Fruit 23,"Premium Fruit, pack 6",Ranchers,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100024,Daily Vegetables 24,"Daily Vegetables, pack 1",Kirkland,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100025,Select Batteries 25,"Select Batteries, pack 2",Great Value,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100026,Fresh Cables 26,"Fresh Cables, pack 3",Organic Valley,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100027,Home Paper Goods 27,"Home Paper Goods, pack 4",La Brea,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100028,Essential Cleaning 28,"Essential Cleaning, pack 5",Duracell,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100029,Bundle Basics 29,"Bundle Basics, pack 6",Bounty,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100030,Classic Socks 30,"Classic Socks, pack 1",Tide,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100031,Family Beef 31,"Family Beef, pack 2",Sony,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100032,Value Chicken 32,"Value Chicken, pack 3",Apple,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100033,Premium Fish 33,"Premium Fish, pack 4",Nike,PERISHABLE,SC701,Fish,Fish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100034,Daily Shellfish 34,"Daily Shellfish, pack 5",FreshCatch,PERISHABLE,SC702,Shellfish,Shellfish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100035,Select Milk 35,"Select Milk, pack 6",Ranchers,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100036,Fresh Eggs 36,"Fresh Eggs, pack 1",Kirkland,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100037,Home Cheese 37,"Home Cheese, pack 2",Great Value,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100038,Essential Bread 38,"Essential Bread, pack 3",Organic Valley,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100039,Bundle Pastry 39,"Bundle Pastry, pack 4",La Brea,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100040,Classic Fruit 40,"Classic Fruit, pack 5",Duracell,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100041,Family Vegetables 41,"Family Vegetables, pack 6",Bounty,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100042,Value Batteries 42,"Value Batteries, pack 1",Tide,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100043,Premium Cables 43,"Premium Cables, pack 2",Sony,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100044,Daily Paper Goods 44,"Daily Paper Goods, pack 3",Apple,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100045,Select Cleaning 45,"Select Cleaning, pack 4",Nike,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100046,Fresh Basics 46,"Fresh Basics, pack 5",FreshCatch,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100047,Home Socks 47,"Home Socks, pack 6",Ranchers,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100048,Essential Beef 48,"Essential Beef, pack 1",Kirkland,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100049,Bundle Chicken 49,"Bundle Chicken, pack 2",Great Value,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100050,Classic Fish 50,"Classic Fish, pack 3",Organic Valley,PERISHABLE,SC701,Fish,Fish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100051,Family Shellfish 51,"Family Shellfish, pack 4",La Brea,PERISHABLE,SC702,Shellfish,Shellfish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100052,Value Milk 52,"Value Milk, pack 5",Duracell,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100053,Premium Eggs 53,"Premium Eggs, pack 6",Bounty,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100054,Daily Cheese 54,"Daily Cheese, pack 1",Tide,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100055,Select Bread 55,"Select Bread, pack 2",Sony,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100056,Fresh Pastry 56,"Fresh Pastry, pack 3",Apple,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100057,Home Fruit 57,"Home Fruit, pack 4",Nike,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100058,Essential Vegetables 58,"Essential Vegetables, pack 5",FreshCatch,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100059,Bundle Batteries 59,"Bundle Batteries, pack 6",Ranchers,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100060,Classic Cables 60,"Classic Cables, pack 1",Kirkland,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100061,Family Paper Goods 61,"Family Paper Goods, pack 2",Great Value,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100062,Value Cleaning 62,"Value Cleaning, pack 3",Organic Valley,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100063,Premium Basics 63,"Premium Basics, pack 4",La Brea,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100064,Daily Socks 64,"Daily Socks, pack 5",Duracell,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100065,Select Beef 65,"Select Beef, pack 6",Bounty,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100066,Fresh Chicken 66,"Fresh Chicken, pack 1",Tide,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100067,Home Fish 67,"Home Fish, pack 2",Sony,PERISHABLE,SC701,Fish,Fish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100068,Essential Shellfish 68,"Essential Shellfish, pack 3",Apple,PERISHABLE,SC702,Shellfish,Shellfish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100069,Bundle Milk 69,"Bundle Milk, pack 4",Nike,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100070,Classic Eggs 70,"Classic Eggs, pack 5",FreshCatch,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100071,Family Cheese 71,"Family Cheese, pack 6",Ranchers,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100072,Value Bread 72,"Value Bread, pack 1",Kirkland,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100073,Premium Pastry 73,"Premium Pastry, pack 2",Great Value,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100074,Daily Fruit 74,"Daily Fruit, pack 3",Organic Valley,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100075,Select Vegetables 75,"Select Vegetables, pack 4",La Brea,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100076,Fresh Batteries 76,"Fresh Batteries, pack 5",Duracell,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100077,Home Cables 77,"Home Cables, pack 6",Bounty,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100078,Essential Paper Goods 78,"Essential Paper Goods, pack 1",Tide,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100079,Bundle Cleaning 79,"Bundle Cleaning, pack 2",Sony,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100080,Classic Basics 80,"Classic Basics, pack 3",Apple,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100081,Family Socks 81,"Family Socks, pack 4",Nike,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100082,Value Beef 82,"Value Beef, pack 5",FreshCatch,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100083,Premium Chicken 83,"Premium Chicken, pack 6",Ranchers,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100084,Daily Fish 84,"Daily Fish, pack 1",Kirkland,PERISHABLE,SC701,Fish,Fish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100085,Select Shellfish 85,"Select Shellfish, pack 2",Great Value,PERISHABLE,SC702,Shellfish,Shellfish products,C70,Seafood,Seafood category,D03,Fresh,Fresh department,Y
+100086,Fresh Milk 86,"Fresh Milk, pack 3",Organic Valley,FOOD,SC101,Milk,Milk products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100087,Home Eggs 87,"Home Eggs, pack 4",La Brea,FOOD,SC102,Eggs,Eggs products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100088,Essential Cheese 88,"Essential Cheese, pack 5",Duracell,FOOD,SC103,Cheese,Cheese products,C10,Dairy,Dairy category,D01,Grocery,Grocery department,Y
+100089,Bundle Bread 89,"Bundle Bread, pack 6",Bounty,FOOD,SC201,Bread,Bread products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100090,Classic Pastry 90,"Classic Pastry, pack 1",Tide,FOOD,SC202,Pastry,Pastry products,C20,Bakery,Bakery category,D01,Grocery,Grocery department,Y
+100091,Family Fruit 91,"Family Fruit, pack 2",Sony,FOOD,SC251,Fruit,Fruit products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100092,Value Vegetables 92,"Value Vegetables, pack 3",Apple,FOOD,SC252,Vegetables,Vegetables products,C25,Produce,Produce category,D01,Grocery,Grocery department,Y
+100093,Premium Batteries 93,"Premium Batteries, pack 4",Nike,NON_FOOD,SC301,Batteries,Batteries products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100094,Daily Cables 94,"Daily Cables, pack 5",FreshCatch,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y
+100095,Select Paper Goods 95,"Select Paper Goods, pack 6",Ranchers,NON_FOOD,SC401,Paper Goods,Paper Goods products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100096,Fresh Cleaning 96,"Fresh Cleaning, pack 1",Kirkland,NON_FOOD,SC402,Cleaning,Cleaning products,C40,Household,Household category,D02,General Merchandise,General Merchandise department,Y
+100097,Home Basics 97,"Home Basics, pack 2",Great Value,NON_FOOD,SC501,Basics,Basics products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100098,Essential Socks 98,"Essential Socks, pack 3",Organic Valley,NON_FOOD,SC502,Socks,Socks products,C50,Apparel,Apparel category,D02,General Merchandise,General Merchandise department,Y
+100099,Bundle Beef 99,"Bundle Beef, pack 4",La Brea,PERISHABLE,SC601,Beef,Beef products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100100,Classic Chicken 100,"Classic Chicken, pack 5",Duracell,PERISHABLE,SC602,Chicken,Chicken products,C60,Meat,Meat category,D03,Fresh,Fresh department,Y
+100101,Premium Home Theater Bundle,"Premium Home Theater Bundle, 7.1 channel",Sony,NON_FOOD,SC302,Cables,Cables products,C30,Electronics Accessories,Electronics Accessories category,D02,General Merchandise,General Merchandise department,Y

@@ -41,7 +41,7 @@ target picture is [architecture-Simple view.png](architecture-Simple%20view.png)
 - **Source files** keep their names: `sales_`, `inventory_`, `item_master_`, `store_master_YYYYMMDD.csv`.
 - **STG lineage:** `_INGEST_DT`, `_SOURCE_FILE`, `_SOURCE_ROW_NUM`, `_INGEST_TS`, `_BATCH_ID`.
 - **Archive:** after a successful STG load, files move `data/landing/` → `data/archive/`.
-- **Stage:** named internal `@my_int_stage`; external stage written and explained only (no bucket).
+- **Stage:** named internal `@my_int_stage` only. No external stage (no S3, Azure or GCS bucket).
 
 ---
 
@@ -53,6 +53,7 @@ target picture is [architecture-Simple view.png](architecture-Simple%20view.png)
 | Schedule `0 6 * * 1-5`; day **D** = `{{ ds }}` | One run per weekday; data is as of D+1 in spirit |
 | `_INGEST_DT` = D; `_BATCH_ID` = `{{ run_id }}` | Day to delete / reload by, and which run did it |
 | `max_active_runs = 1` | SCD2, soft-close, price periods and G8 depend on the previous day |
+| **History 1 Jan – 9 Nov 2026** (every day, ~1,000 sales lines/day, ~313 days) loaded **once** by a separate initial-load DAG; the 5 days above run through `medallion_daily` | Realistic Gold (price, stock, SCD2 history) and a baseline for statistical outlier checks; a 313-run backfill would take hours. Reconciliation evidence stays 2 × 5 |
 
 ---
 
@@ -70,7 +71,7 @@ target picture is [architecture-Simple view.png](architecture-Simple%20view.png)
 | `BOOLEAN` | `*_FLG` | Files send `Y`/`N`; no ambiguity after TMP |
 | `VARIANT` | `TMP_QUARANTINE.RAW_RECORD` | Whole rejected row, any shape |
 
-Full table: [THEORY 3.10](THEORY.md#sec-3-10-data-types).
+Full table: [THEORY 3.10](THEORY.md#310-data-types-and-why-we-pick-them).
 
 ---
 
@@ -115,7 +116,7 @@ Full table: [THEORY 3.10](THEORY.md#sec-3-10-data-types).
 
 ---
 
-## Departures (full list: [THEORY 1.4](THEORY.md#sec-1-4-departures))
+## Departures (full list: [THEORY 1.4](THEORY.md#14-departures-and-where-the-brief-and-the-diagram-differ))
 
 1. `DIM_DAY` seeded into Gold (diagram's own departure).
 2. `ITEM_DESC` SCD1 inside an SCD2 `DIM_ITEM` (brief).
@@ -125,7 +126,8 @@ Full table: [THEORY 3.10](THEORY.md#sec-3-10-data-types).
 6. Extra gate G11 = the brief's reconciliation.
 7. Brief "district change" = store moves city.
 8. Extra gate G12: configurable outlier limits.
-9. No `tests/`; external stage documented only; `@task.snowflake` doesn't exist.
+9. No external stage: internal stage only (no cloud bucket).
+10. No `tests/`; `@task.snowflake` doesn't exist.
 
 ---
 

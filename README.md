@@ -16,7 +16,7 @@ All documentation is in [`context/`](context/):
 3. [ASSUMPTIONS.md](context/ASSUMPTIONS.md): project assumptions, gates and departures (short).
 4. [THEORY.md](context/THEORY.md): read the sections listed for the current lesson.
 5. The current lesson in [context/lessons/](context/lessons/) (now
-   [02_stg_tables.md](context/lessons/02_stg_tables.md)): follow the steps, then run the checkpoint.
+   [05_bronze_load.md](context/lessons/05_bronze_load.md)): follow the steps, then run the checkpoint.
 
 To continue in a new chat with an agent, start from [AGENT_CONTEXT.md](context/AGENT_CONTEXT.md).
 

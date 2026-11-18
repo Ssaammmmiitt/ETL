@@ -1,0 +1,6 @@
+-- Gate G2 (documented shape): field count must match the drop contract.
+-- A transforming COPY ignores ERROR_ON_COLUMN_COUNT_MISMATCH, so the check is done in Python
+-- (dags/05_bronze_load.py → g2_check_file) against the landing CSV with the csv module:
+--   inventory: 8 fields, no header
+--   sales: 16 fields + header; item_master: 15; store_master: 14
+-- Action on failure: fail the task (quarantine the file / do not COPY).

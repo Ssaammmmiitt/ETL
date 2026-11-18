@@ -1,0 +1,26 @@
+LOCN_ID,LOCN_NM,LOCN_TYPE,ADDRESS_TXT,POSTAL_CD,CITY_ID,CITY_NM,STATE_PROVINCE_NM,COUNTRY_NM,REGION_ID,REGION_NM,DIVISION_ID,DIVISION_NM,ACTIVE_FLG
+1001,Seattle North,BUSINESS,107 Main St,98101,CT01,Seattle,Washington,United States,R01,Puget Sound,DV1,Northwest,Y
+1002,Bellevue Central,WAREHOUSE,114 Main St,98004,CT02,Bellevue,Washington,United States,R01,Puget Sound,DV1,Northwest,Y
+1003,Tacoma North,BUSINESS,121 Main St,98402,CT03,Tacoma,Washington,United States,R01,Puget Sound,DV1,Northwest,Y
+1004,Portland Central,WAREHOUSE,128 Main St,97201,CT04,Portland,Oregon,United States,R02,Columbia River,DV1,Northwest,Y
+1005,Salem North,WAREHOUSE,135 Main St,97301,CT05,Salem,Oregon,United States,R02,Columbia River,DV1,Northwest,Y
+1006,Eugene Central,BUSINESS,142 Main St,97401,CT06,Eugene,Oregon,United States,R02,Columbia River,DV1,Northwest,Y
+1007,Boise North,WAREHOUSE,149 Main St,83702,CT07,Boise,Idaho,United States,R03,Snake River,DV1,Northwest,Y
+1008,Spokane Central,BUSINESS,156 Main St,99201,CT08,Spokane,Washington,United States,R03,Snake River,DV1,Northwest,Y
+1009,San Francisco North,WAREHOUSE,163 Main St,94102,CT09,San Francisco,California,United States,R04,Bay Area,DV2,West,Y
+1010,Oakland Central,WAREHOUSE,170 Main St,94607,CT10,Oakland,California,United States,R04,Bay Area,DV2,West,Y
+1011,San Jose North,BUSINESS,177 Main St,95112,CT11,San Jose,California,United States,R04,Bay Area,DV2,West,Y
+1012,Los Angeles Central,WAREHOUSE,184 Main St,90012,CT12,Los Angeles,California,United States,R05,South Coast,DV2,West,Y
+1013,San Diego North,BUSINESS,191 Main St,92101,CT13,San Diego,California,United States,R05,South Coast,DV2,West,Y
+1014,Denver Central,WAREHOUSE,198 Main St,80202,CT14,Denver,Colorado,United States,R06,Front Range,DV3,Mountain,Y
+1015,Boulder North,WAREHOUSE,205 Main St,80301,CT15,Boulder,Colorado,United States,R06,Front Range,DV3,Mountain,Y
+1016,Phoenix Central,BUSINESS,212 Main St,85004,CT16,Phoenix,Arizona,United States,R07,Valley,DV3,Mountain,Y
+1017,Tucson North,WAREHOUSE,219 Main St,85701,CT17,Tucson,Arizona,United States,R07,Valley,DV3,Mountain,Y
+1018,Chicago Central,BUSINESS,226 Main St,60601,CT18,Chicago,Illinois,United States,R08,Great Lakes,DV4,Midwest,Y
+1019,Milwaukee North,WAREHOUSE,233 Main St,53202,CT19,Milwaukee,Wisconsin,United States,R08,Great Lakes,DV4,Midwest,Y
+1020,Minneapolis Central,WAREHOUSE,240 Main St,55401,CT20,Minneapolis,Minnesota,United States,R09,North Star,DV4,Midwest,Y
+1021,Dallas North,BUSINESS,247 Main St,75201,CT21,Dallas,Texas,United States,R10,North Texas,DV5,South,Y
+1022,Austin Central,WAREHOUSE,254 Main St,78701,CT22,Austin,Texas,United States,R10,North Texas,DV5,South,Y
+1023,Houston North,BUSINESS,261 Main St,77002,CT23,Houston,Texas,United States,R11,Gulf,DV5,South,Y
+1024,Atlanta Central,WAREHOUSE,268 Main St,30303,CT24,Atlanta,Georgia,United States,R12,Piedmont,DV5,South,Y
+1025,Miami North,WAREHOUSE,275 Main St,33130,CT25,Miami,Florida,United States,R12,Piedmont,DV5,South,Y

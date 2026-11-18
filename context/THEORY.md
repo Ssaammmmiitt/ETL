@@ -7,42 +7,42 @@ Versions assumed: **Airflow 3.3** (2.x names noted where they differ) and **Snow
 The project follows the architecture in [`architecture-Simple view.png`](architecture-Simple%20view.png)
 (notes: [`architecture_simple.md`](architecture_simple.md), [`architecture_notes.md`](architecture_notes.md)).
 
-<h2 id="which-sections-each-lesson-needs">Which sections each lesson needs</h2>
+## Which sections each lesson needs
 
 | Lesson | Read first |
 |---|---|
-| 1 Environment, connections, variables | [1](#sec-1-medallion), [2.1](#21-components), [2.3](#23-parse-time-vs-run-time), [2.6](#26-connections-variables-templating-and-the-fernet-key), [3.1](#31-architecture-warehouses-and-cost), [3.2](#32-access-control-service-users-and-key-pair-auth), [8](#8-docker-essentials) |
-| 2 Simple data, STG tables, file formats | [1](#sec-1-medallion), [3.4](#sec-3-4-file-formats), [3.7](#sec-3-7-null-handling), [3.10](#sec-3-10-data-types), [5.6](#sec-5-6-outliers) |
-| 3 Stages, positional load | [3.3](#33-stages), [3.4](#sec-3-4-file-formats) |
-| 4 Waiting: sensors vs Assets, gate G1 | [2.7](#27-sensors), [2.8](#28-assets-datasets-and-the-sensor-trade-off), [3.3](#33-stages), [5.2](#sec-5-2-gates) |
-| 5 Bronze DAG: mapped STG load | [2.4](#24-scheduling-logical-date-catchup-and-backfill), [2.5](#25-taskflow-api-and-xcom), [2.9](#29-dynamic-task-mapping-and-task-groups), [3.4](#sec-3-4-file-formats), [3.5](#sec-3-5-partitions), [6](#6-idempotency-playbook) |
+| 1 Environment, connections, variables | [1](#1-medallion-architecture-stg--tmp--tgt--aggregate), [2.1](#21-components), [2.3](#23-parse-time-vs-run-time), [2.6](#26-connections-variables-templating-and-the-fernet-key), [3.1](#31-architecture-warehouses-and-cost), [3.2](#32-access-control-service-users-and-key-pair-auth), [8](#8-docker-essentials) |
+| 2 Simple data, STG tables, file formats | [1](#1-medallion-architecture-stg--tmp--tgt--aggregate), [3.4](#34-file-formats-and-copy-into), [3.7](#37-null-handling), [3.10](#310-data-types-and-why-we-pick-them), [5.6](#56-outliers-vs-anomalies-and-the-configurable-gate-g12) |
+| 3 Stages, positional load | [3.3](#33-stages), [3.4](#34-file-formats-and-copy-into) |
+| 4 Waiting: sensors vs Assets, gate G1 | [2.7](#27-sensors), [2.8](#28-assets-datasets-and-the-sensor-trade-off), [3.3](#33-stages), [5.2](#52-quality-gates-red-hexagons-on-the-diagram) |
+| 5 Bronze DAG: mapped STG load | [2.4](#24-scheduling-logical-date-catchup-and-backfill), [2.5](#25-taskflow-api-and-xcom), [2.9](#29-dynamic-task-mapping-and-task-groups), [3.4](#34-file-formats-and-copy-into), [3.5](#35-micro-partitions-pruning-and-the-diagrams-partitioning), [6](#6-idempotency-playbook) |
 | 6 Complex data, hierarchies, customers, prices | [4.1](#41-grain-facts-and-dimensions), [4.3](#43-hierarchies) |
-| 7 Silver: TMP tables, gates G2–G6, G12 outliers | [3.6](#36-sql-toolkit), [3.7](#sec-3-7-null-handling), [3.10](#sec-3-10-data-types), [5.1](#51-quarantine-never-drop), [5.2](#sec-5-2-gates), [5.6](#sec-5-6-outliers) |
+| 7 Silver: TMP tables, gates G2–G6, G12 outliers | [3.6](#36-sql-toolkit), [3.7](#37-null-handling), [3.10](#310-data-types-and-why-we-pick-them), [5.1](#51-quarantine-never-drop), [5.2](#52-quality-gates-red-hexagons-on-the-diagram), [5.6](#56-outliers-vs-anomalies-and-the-configurable-gate-g12) |
 | 8 Gold TGT dimensions | [4.2](#42-natural-keys-vs-surrogate-keys), [4.3](#43-hierarchies), [4.4](#44-slowly-changing-dimensions-scd), [3.6](#36-sql-toolkit), [2.9](#29-dynamic-task-mapping-and-task-groups), [6](#6-idempotency-playbook) |
-| 9 Gold TGT facts, full DAG | [4.1](#41-grain-facts-and-dimensions), [4.5](#sec-4-5-facts), [3.6](#36-sql-toolkit), [5.2](#sec-5-2-gates) |
+| 9 Gold TGT facts, full DAG | [4.1](#41-grain-facts-and-dimensions), [4.5](#45-fact-types-sales-inventory-soft-close-price-periods), [3.6](#36-sql-toolkit), [5.2](#52-quality-gates-red-hexagons-on-the-diagram) |
 | 10 Defects, SCD2, PK checker | [4.4](#44-slowly-changing-dimensions-scd), [4.6](#46-orphans-and-late-arriving-dimensions), [3.8](#38-constraints-are-not-enforced), [5](#5-data-quality-quarantine-and-reconciliation) |
-| 11 Aggregate, reconciliation, alerting | [4.7](#sec-4-7-aggregates), [5.4](#sec-5-4-reconciliation), [2.10](#210-branching-trigger-rules-and-the-return-flag-pattern), [2.11](#211-failure-handling-retries-callbacks-and-alerts) |
-| 12 Idempotency proof | [6](#6-idempotency-playbook), [5.5](#sec-5-5-retention-reload) |
+| 11 Aggregate, reconciliation, alerting | [4.7](#47-aggregates-and-views), [5.4](#54-reconciliation-g11), [2.10](#210-branching-trigger-rules-and-the-return-flag-pattern), [2.11](#211-failure-handling-retries-callbacks-and-alerts) |
+| 12 Idempotency proof | [6](#6-idempotency-playbook), [5.5](#55-retention-and-the-reload-of-one-bad-day-d) |
 | 13 Backfill | [2.4](#24-scheduling-logical-date-catchup-and-backfill) |
 | 14 Checks, README | [7](#7-checks) |
 
 ---
 
-<h2 id="sec-1-medallion">1. Medallion architecture (STG / TMP / TGT / Aggregate)</h2>
+## 1. Medallion architecture (STG / TMP / TGT / Aggregate)
 
 ![Simple view of the architecture](architecture-Simple%20view.png)
 
 Data flows left to right: **Source files → Bronze (STG) → Silver (TMP) → Gold TGT → Gold Aggregate → Consumers.**
 Each layer makes a promise the next layer can rely on. Red hexagons on the diagram are
-**quality gates** (G1–G10) on the layer boundaries (section [5.2](#sec-5-2-gates)).
+**quality gates** (G1–G10) on the layer boundaries (section [5.2](#52-quality-gates-red-hexagons-on-the-diagram)).
 
-<h3 id="sec-1-1-naming">1.1 Naming convention</h3>
+### 1.1 Naming convention
 
 | Table type | Layer | Snowflake schema | Purpose | Tables in this project |
 |---|---|---|---|---|
 | **STG** | Bronze | `BRONZE` | Raw landing, no transformation | `STG_SALES`, `STG_INVENTORY`, `STG_ITEM_MASTER`, `STG_STORE_MASTER` |
 | **TMP** | Silver | `SILVER` | Clean and compare against target | `TMP_SALES_LINE`, `TMP_CUSTOMER`, `TMP_ITEM_LOC_SNAPSHOT`, `TMP_ITEM_HIER`, `TMP_LOCN_HIER`, `TMP_QUARANTINE` |
-| **TGT** | Gold | `GOLD` | The dimension or fact itself | 10 `DIM_*` + 3 `FCT_*` (below) |
+| **TGT** | Gold | `GOLD` | The dimension or fact itself | 10 `DIM_`* + 3 `FCT_`* (below) |
 | **Aggregate** | Gold | `GOLD` | Rolled-up marts on top of TGT | `AGG_DAILY_ITEM_LOCN_SALES`, view `VW_DAILY_ITEM_LOCN_SALES` |
 
 Gold TGT, grouped as on the diagram:
@@ -69,7 +69,7 @@ Other naming rules used everywhere:
 Every object on the diagram carries a badge **format · partitioning · load pattern**, for
 example `CSV · ingest_dt · delta` (STG_SALES) or `table · DAY_KY · delta` (FCT_SALES).
 
-<h3 id="sec-1-2-contracts">1.2 What each layer guarantees</h3>
+### 1.2 What each layer guarantees
 
 | Layer | Guarantees | Does **not** guarantee |
 |---|---|---|
@@ -82,7 +82,7 @@ example `CSV · ingest_dt · delta` (STG_SALES) or `table · DAY_KY · delta` (F
 Why layers: a bug in Silver or Gold can be fixed and re-run from Bronze without asking
 the source system to resend files.
 
-<h3 id="sec-1-3-sources">1.3 The source drops and what they feed</h3>
+### 1.3 The source drops and what they feed
 
 | Drop | Grain | Load | Header | Lands in | Feeds (TMP → TGT) |
 |---|---|---|---|---|---|
@@ -92,7 +92,7 @@ the source system to resend files.
 | `store_master_YYYYMMDD.csv` | Flattened location > city > region > division | full | yes | `STG_STORE_MASTER` | `TMP_LOCN_HIER` → location hierarchy dims |
 | `seed_dim_day.csv` | One calendar day | seed | yes | (none) | `DIM_DAY` directly (the departure, 1.4) |
 
-<h3 id="sec-1-4-departures">1.4 Departures, and where the brief and the diagram differ</h3>
+### 1.4 Departures, and where the brief and the diagram differ
 
 | # | Departure | Why |
 |---|---|---|
@@ -104,12 +104,13 @@ the source system to resend files.
 | 6 | Extra gate **G11**: Gold net sales tie to the source file per day | The brief's reconciliation requirement (2 columns × 5 rows) |
 | 7 | Brief's "store whose district changes" = a store moving to a different `CITY_ID` (its direct parent) | Brief hierarchy store → district → region maps onto locn → city → region → division |
 | 8 | Extra gate **G12**: configurable outlier limits | G6 only checks arithmetic; a price typed ×1000 still adds up. Limits live in the Variable so they change without code |
+| 9 | **No external stage**: only the internal stage `@my_int_stage` | External stages need your own S3, Azure Blob or GCS bucket, and none is available. `LIST` and `COPY` work the same on both kinds |
 
 ---
 
-<h2 id="2-airflow-fundamentals">2. Airflow fundamentals</h2>
+## 2. Airflow fundamentals
 
-<h3 id="21-components">2.1 Components</h3>
+### 2.1 Components
 
 | Component | Role |
 |---|---|
@@ -120,7 +121,7 @@ the source system to resend files.
 | Triggerer | Runs deferred tasks (async waits that don't hold a worker slot) |
 | Metadata DB | Postgres: runs, task states, XComs, connections, variables |
 
-<h3 id="22-dags-tasks-operators-hooks-sensors">2.2 DAGs, tasks, operators, hooks, sensors</h3>
+### 2.2 DAGs, tasks, operators, hooks, sensors
 
 - **DAG**: a directed acyclic graph of tasks. "Acyclic" means no loops; Airflow refuses cycles at parse time.
 - **Task**: one node; an instance of an operator. A **task instance** is one task for one run (and one map index).
@@ -128,13 +129,13 @@ the source system to resend files.
 - **Hook**: a client for an external system, built from a connection (`SnowflakeHook`). Operators use hooks internally; inside `@task` you use hooks directly.
 - **Sensor**: an operator that waits until a condition is true (`FileSensor`).
 
-<h3 id="23-parse-time-vs-run-time">2.3 Parse time vs run time</h3>
+### 2.3 Parse time vs run time
 
 - **Parse time**: the DAG processor imports every file in `dags/` about every 30 s. Top-level code runs each time, so it must be fast and must not call databases, APIs or `Variable.get()`.
 - **Run time**: a worker executes one task. Task bodies run and templates render here.
 - Rule: config is read inside tasks or through Jinja templates, never at module top level.
 
-<h3 id="24-scheduling-logical-date-catchup-and-backfill">2.4 Scheduling, logical date, catchup and backfill</h3>
+### 2.4 Scheduling, logical date, catchup and backfill
 
 - **Logical date** (`{{ ds }}` = `YYYY-MM-DD`, `{{ ds_nodash }}` = `YYYYMMDD`): the date a run *represents*. Each run processes only its own date; that is what makes reruns and backfills safe. In this project `ds` is day **D**: it becomes `_INGEST_DT` in STG and `DAY_KY` in Gold.
 - Airflow 3 cron schedules use `CronTriggerTimetable` by default: the run for `2026-11-10 06:00` starts at that time and its `ds` is `2026-11-10`. (Airflow 2 used data intervals: the run for day D started at the *end* of D.)
@@ -143,7 +144,7 @@ the source system to resend files.
 - **Backfill** (Airflow 3): `airflow backfill create --dag-id X --from-date 2026-11-10 --to-date 2026-11-16`. Runs are executed by the scheduler and show in the UI. Options include `--reprocess-behavior` (`none`, `failed`, `completed`) and `--max-active-runs`.
 - `max_active_runs=1`: one run at a time. Required when a run depends on the previous date's result (SCD2, inventory soft-close, price periods, gate G8).
 
-<h3 id="25-taskflow-api-and-xcom">2.5 TaskFlow API and XCom</h3>
+### 2.5 TaskFlow API and XCom
 
 ```python
 from airflow.sdk import dag, task
@@ -162,7 +163,7 @@ report(count_rows("x"))  # calling tasks wires the dependency
 - **XCom** stores small values in the metadata DB. Pass counts, flags, file names; never datasets.
 - Mix with classic operators: `op_task >> taskflow_task()`.
 
-<h3 id="26-connections-variables-templating-and-the-fernet-key">2.6 Connections, variables, templating and the Fernet key</h3>
+### 2.6 Connections, variables, templating and the Fernet key
 
 | Item | Use for | Read with |
 |---|---|---|
@@ -174,7 +175,7 @@ report(count_rows("x"))  # calling tasks wires the dependency
 - Useful macros: `{{ ds }}`, `{{ ds_nodash }}`, `{{ logical_date }}`, `{{ macros.ds_add(ds, -1) }}`, `{{ run_id }}`.
 - **Fernet key** encrypts connection passwords and extras in the metadata DB. Set it before creating connections; changing it later makes them unreadable.
 
-<h3 id="27-sensors">2.7 Sensors</h3>
+### 2.7 Sensors
 
 | Mode | Behaviour | Use when |
 |---|---|---|
@@ -189,7 +190,7 @@ Key parameters:
 - `exponential_backoff=True`: grow the interval between checks.
 - `FileSensor(fs_conn_id=..., filepath=...)`: the path is relative to the `path` in the `fs` connection, so the DAG never contains a full path.
 
-<h3 id="28-assets-datasets-and-the-sensor-trade-off">2.8 Assets (Datasets) and the sensor trade-off</h3>
+### 2.8 Assets (Datasets) and the sensor trade-off
 
 - An **Asset** is a named piece of data (`Asset("s3://bucket/sales")`). A task that lists it in `outlets=[...]` emits an *asset event* when it succeeds. A DAG with `schedule=[asset_a, asset_b]` runs when all of them have been updated.
 - Airflow 3 adds `AssetWatcher` to create asset events from external triggers (for example, message queues).
@@ -206,7 +207,7 @@ Key parameters:
 needs the files for *its* date, with a timeout. Assets are taught as the right tool when
 Airflow itself produces the data.
 
-<h3 id="29-dynamic-task-mapping-and-task-groups">2.9 Dynamic Task Mapping and task groups</h3>
+### 2.9 Dynamic Task Mapping and task groups
 
 ```python
 load_stg.partial(ingest_dt="{{ ds }}").expand(source=["sales", "inventory", "item_master", "store_master"])
@@ -217,7 +218,7 @@ load_stg.partial(ingest_dt="{{ ds }}").expand(source=["sales", "inventory", "ite
 - Mapping over a list returned by an upstream task makes the fan-out data-driven.
 - **Task groups** (`@task_group` or `TaskGroup`) group tasks visually and let you set dependencies on the whole group (`tgt_dims >> tgt_facts`). They don't change execution.
 
-<h3 id="210-branching-trigger-rules-and-the-return-flag-pattern">2.10 Branching, trigger rules and the return-flag pattern</h3>
+### 2.10 Branching, trigger rules and the return-flag pattern
 
 ```python
 @task
@@ -233,7 +234,7 @@ def route(ok: bool) -> str:
 - Skips propagate downstream. A task that joins branches needs `trigger_rule="none_failed_min_one_success"`.
 - Other trigger rules: `all_success` (default), `all_done` (runs even after failures, good for cleanup and summaries), `one_failed`.
 
-<h3 id="211-failure-handling-retries-callbacks-and-alerts">2.11 Failure handling: retries, callbacks and alerts</h3>
+### 2.11 Failure handling: retries, callbacks and alerts
 
 - `retries` and `retry_delay` in `default_args`: transient errors (network, warehouse resume) get retried.
 - `raise AirflowFailException(...)`: fail immediately, **no retries**. Use for data problems such as a gate with action "fail", where retrying won't help.
@@ -242,22 +243,22 @@ def route(ok: bool) -> str:
 
 ---
 
-<h2 id="3-snowflake-fundamentals">3. Snowflake fundamentals</h2>
+## 3. Snowflake fundamentals
 
-<h3 id="31-architecture-warehouses-and-cost">3.1 Architecture, warehouses and cost</h3>
+### 3.1 Architecture, warehouses and cost
 
 - Storage and compute are separate. Data lives once in cloud storage; **virtual warehouses** are compute clusters that read it.
 - Credits are charged per second while a warehouse runs (60 s minimum each time it resumes). `AUTO_SUSPEND = 60` and `AUTO_RESUME = TRUE` keep costs low.
 - X-Small is enough for this project.
 
-<h3 id="32-access-control-service-users-and-key-pair-auth">3.2 Access control, service users and key-pair auth</h3>
+### 3.2 Access control, service users and key-pair auth
 
 - Privileges are granted to **roles**, and roles to users (RBAC).
 - System roles: `ACCOUNTADMIN` (everything; use sparingly), `SECURITYADMIN` (users, roles, grants), `SYSADMIN` (warehouses, databases).
 - Best practice: a custom role per workload (`MEDALLION_ROLE`) granted up to `SYSADMIN`.
 - `TYPE = SERVICE` users cannot use passwords or Snowsight and aren't subject to MFA. They authenticate with **key pairs**: Snowflake stores the public key, and the client signs a token with the private key.
 
-<h3 id="33-stages">3.3 Stages</h3>
+### 3.3 Stages
 
 A stage is a named location for files that Snowflake can read with `COPY INTO`.
 
@@ -266,25 +267,23 @@ A stage is a named location for files that Snowflake can read with `COPY INTO`.
 | User stage | `@~` | Per user, cannot be shared |
 | Table stage | `@%table_name` | Per table |
 | Named internal | `@my_int_stage` | Storage managed by Snowflake; files uploaded with `PUT` |
-| Named external | `@my_ext_stage` | Points at your S3, Azure Blob or GCS location |
+| Named external | — | Points at your own cloud bucket. **Not used** here (departure 9) |
 
 Commands:
 
 ```sql
-PUT file:///opt/airflow/data/landing/sales_20261110.csv @my_int_stage/2026-11-10/ AUTO_COMPRESS = TRUE OVERWRITE = TRUE;
+PUT 'file:///opt/airflow/data/landing/sales_20261110.csv' @my_int_stage/2026-11-10/ AUTO_COMPRESS = TRUE;
 LIST @my_int_stage/2026-11-10/;                       -- name, size, md5, last_modified
 SELECT "name" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())); -- query LIST output with SQL
 REMOVE @my_int_stage/2026-11-10/;
 ```
 
 - `PUT` runs from a client (Python connector, SnowSQL), **not** from a Snowsight worksheet. Snowsight has an upload button instead.
+- `PUT` / `GET` are intercepted **by the client**. The statement must start with `PUT` or `GET` (no leading `--` comments), or the connector sends it to the server and fails with `unsupported_requested_format:snowflake`.
+- `PUT` skips a file that is already on the stage unchanged (status `SKIPPED`). `OVERWRITE = TRUE` replaces a changed file with the same name.
 - `LIST` is how the pipeline proves files reached the stage before `COPY` (Lesson 4).
-- **Storage integration**: an account-level object that holds the cloud identity (for S3, an IAM role ARN) and the allowed locations. External stages reference it, so no keys are stored in stage definitions. Creating one needs `ACCOUNTADMIN` or the `CREATE INTEGRATION` privilege. Setup for S3:
-  1. `CREATE STORAGE INTEGRATION ... STORAGE_PROVIDER = 'S3' STORAGE_AWS_ROLE_ARN = '...' STORAGE_ALLOWED_LOCATIONS = ('s3://bucket/path/')`
-  2. `DESC INTEGRATION` → copy `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID` into the IAM role's trust policy
-  3. `CREATE STAGE my_ext_stage URL = 's3://bucket/path/' STORAGE_INTEGRATION = ...`
 
-<h3 id="sec-3-4-file-formats">3.4 File formats and COPY INTO</h3>
+### 3.4 File formats and COPY INTO
 
 **File format** (reusable parsing rules): `TYPE = CSV`, `FIELD_DELIMITER`, `SKIP_HEADER = 1` or `PARSE_HEADER = TRUE`,
 `FIELD_OPTIONALLY_ENCLOSED_BY = '"'`, `NULL_IF = ('', 'NULL')`, `EMPTY_FIELD_AS_NULL = TRUE`, `TRIM_SPACE`.
@@ -295,9 +294,10 @@ REMOVE @my_int_stage/2026-11-10/;
 **Two ways to map columns:**
 
 ```sql
--- By name: file header must match column names
-COPY INTO BRONZE.STG_ITEM_MASTER FROM @my_int_stage/2026-11-10/
-  FILE_FORMAT = (FORMAT_NAME = FF_CSV_HEADER) MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
+-- By name: the header names decide the mapping. CSV needs PARSE_HEADER = TRUE (not SKIP_HEADER)
+COPY INTO DEMO_TABLE FROM @my_int_stage/2026-11-10/ FILES = ('item_master_20261110.csv.gz')
+  FILE_FORMAT = (TYPE = CSV PARSE_HEADER = TRUE FIELD_OPTIONALLY_ENCLOSED_BY = '"' ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
+  MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
 -- Positional: column order in the file decides the mapping ($1 = first field)
 COPY INTO BRONZE.STG_INVENTORY
@@ -315,6 +315,15 @@ Positional loads suit files with no header and a fixed, contracted column order.
 changes, the data silently goes into the wrong columns, so pair it with validation (gate G2).
 `_INGEST_TS` is filled by the column default (`CURRENT_TIMESTAMP()`).
 
+**Why this project loads every file with `SELECT $1, $2, ...`** (a "transforming" COPY):
+- By-name loading can only add *file* metadata (`INCLUDE_METADATA`), not constants, so it can't
+  fill the required `_INGEST_DT` and `_BATCH_ID` columns.
+- The `SELECT` lets us add all lineage columns in the same statement.
+- Trade-off: with a `SELECT`, Snowflake **ignores `ERROR_ON_COLUMN_COUNT_MISMATCH`** (a missing
+  column just becomes `NULL`). So gate G2 needs its own explicit check (Lesson 5).
+- `VALIDATION_MODE` and `VALIDATE()` don't work with a `SELECT` either; query the staged file
+  directly instead: `SELECT $1, $2 FROM @stage/file (FILE_FORMAT => 'FF_NAME')`.
+
 **Load history and re-runs:**
 
 - Snowflake remembers which files were loaded into a table for **64 days** and skips them on later `COPY` runs (the result says `0 files processed`).
@@ -323,7 +332,7 @@ changes, the data silently goes into the wrong columns, so pair it with validati
 - `VALIDATION_MODE = RETURN_ERRORS` checks files without loading (not allowed with a transforming `SELECT`).
 - `METADATA$FILENAME` and `METADATA$FILE_ROW_NUMBER` give lineage per row.
 
-<h3 id="sec-3-5-partitions">3.5 Micro-partitions, pruning and the diagram's "partitioning"</h3>
+### 3.5 Micro-partitions, pruning and the diagram's "partitioning"
 
 - Snowflake stores tables in **micro-partitions** (about 50–500 MB uncompressed) and records min/max per column for each one.
 - A filter like `WHERE _INGEST_DT = '2026-11-10'` skips partitions whose range can't match. This is **pruning**.
@@ -339,7 +348,7 @@ changes, the data silently goes into the wrong columns, so pair it with validati
 `FCT_PRICE` and all dimensions are not partitioned by date, because a price period or an SCD2
 version spans many days.
 
-<h3 id="36-sql-toolkit">3.6 SQL toolkit</h3>
+### 3.6 SQL toolkit
 
 | Tool | What it does | Use for |
 |---|---|---|
@@ -355,7 +364,7 @@ version spans many days.
 **MERGE gotcha:** if two source rows match the same target row, Snowflake raises
 "Duplicate row detected during DML action". Always dedupe the source first.
 
-<h3 id="sec-3-7-null-handling">3.7 NULL handling</h3>
+### 3.7 NULL handling
 
 - Any comparison with NULL is unknown: `NULL = NULL` is not true. Use `IS NULL`, `IS DISTINCT FROM`, or `EQUAL_NULL(a, b)`.
 - `NOT IN (subquery)` returns **no rows** if the subquery contains a NULL. Use `NOT EXISTS`, which also explains why the brief asks for it.
@@ -367,7 +376,7 @@ version spans many days.
   - sends the row to quarantine (gate G3): `ITEM_ID`, `LOCN_ID`, `TRANSACTION_ID`, `LINE_NUM`.
 - `HASH`/`MD5` over concatenated columns: wrap each one in `COALESCE(col, '~')`, otherwise one NULL makes the whole concatenation NULL.
 
-<h3 id="38-constraints-are-not-enforced">3.8 Constraints are not enforced</h3>
+### 3.8 Constraints are not enforced
 
 On standard Snowflake tables, `PRIMARY KEY`, `UNIQUE` and `FOREIGN KEY` are **metadata only**;
 only `NOT NULL` is enforced. Nothing stops duplicate keys, which is why the pipeline needs
@@ -378,30 +387,30 @@ SELECT ITEM_ID, COUNT(*) FROM GOLD.DIM_ITEM WHERE CURRENT_FLG GROUP BY ITEM_ID H
 -- any row returned = fail the task
 ```
 
-<h3 id="39-transactions-and-time-travel">3.9 Transactions and Time Travel</h3>
+### 3.9 Transactions and Time Travel
 
 - Each statement autocommits unless wrapped in `BEGIN ... COMMIT`. DDL commits implicitly.
 - Use a transaction when a load is two steps (close old rows, insert new), so a failure doesn't leave half the change.
 - **Time Travel** lets you query or restore earlier versions: `SELECT ... AT(OFFSET => -3600)`, `UNDROP TABLE`. The diagram's policy: 1 day for Bronze/Silver, 7 days for Gold (`DATA_RETENTION_TIME_IN_DAYS`; above 1 day needs Enterprise).
 
-<h3 id="sec-3-10-data-types">3.10 Data types and why we pick them</h3>
+### 3.10 Data types and why we pick them
 
 Rule of thumb: **STG stores text, TMP picks the real type, TGT keeps TMP's types.**
 The types below are the ones on the diagram's *Medallion Architecture* page.
 
-| Type | Use it for | Why, and what to avoid |
-|---|---|---|
-| `VARCHAR` (no length) | Every STG business column | Text never fails to load: a bad value like `3.9O` still lands and is caught in TMP. A length in STG would only add a way to reject a row |
-| `VARCHAR(n)` | TMP and TGT text: ids `VARCHAR(50)`, names `VARCHAR(100–200)`, descriptions `VARCHAR(500–1000)`, `EMAIL_TXT VARCHAR(254)`, `PHONE_NUM VARCHAR(30)` | Lengths document the contract (254 is the email maximum). Snowflake stores `VARCHAR(50)` and `VARCHAR` the same way, so it costs nothing. Ids stay text even when they look numeric (`1001`, `100006`): you never add them, and leading zeros must survive |
-| `NUMBER(18,2)` | Money: `UNIT_PRICE_AMT`, `PROMO_PRICE_AMT`, `DISCOUNT_AMT`, `SALES_AMT`, `TAX_AMT`, `NET_SALES_AMT` | Exact decimal with 2 places, room for large totals. **Never `FLOAT` for money**: `FLOAT` is approximate (0.1 + 0.2 = 0.30000000000000004) and reconciliation needs a variance of exactly 0 |
-| `NUMBER(18,3)` | Quantities: `SOLD_QTY`, `ON_HAND_QTY`, `RESERVED_QTY`, `AVAILABLE_QTY`, `IN_TRANSIT_QTY` | Fresh items are sold by weight (`0.750` kg), so quantities need 3 decimals |
-| `NUMBER(38,0)` | Surrogate keys `*_KY`, counts `*_CNT`, `_SOURCE_ROW_NUM` | Whole numbers; the largest integer Snowflake has, so a sequence never runs out |
-| `NUMBER(10,0)` | `LINE_NUM` | A small whole number |
-| `NUMBER(8,0)` | `DAY_KY` (`20261110`) | A readable date key that sorts and joins like a number |
-| `DATE` | `SALE_DT`, `SNAPSHOT_DT`, `CALENDAR_DT`, `EFFECTIVE_START_DT` / `EFFECTIVE_END_DT`, `_INGEST_DT` | Calendar day with no time part. Allows date filters and date maths |
-| `TIMESTAMP_NTZ` | `_INGEST_TS`, `INSERT_TS`, `UPDATE_TS`, `QUARANTINED_TS` | Date + time, no time zone. Simplest to read when everything runs in one place |
-| `BOOLEAN` | `ACTIVE_FLG`, `CURRENT_FLG`, `WEEKEND_FLG`, `HOLIDAY_FLG` | Only TRUE / FALSE / NULL, so no guessing what `'Y'`, `'1'` or `'yes'` mean. The files send `Y`/`N`; TMP converts with `TRY_TO_BOOLEAN` |
-| `VARIANT` | `TMP_QUARANTINE.RAW_RECORD` | Holds the whole rejected row as JSON (`OBJECT_CONSTRUCT(*)`), whatever table it came from |
+| Type                  | Use it for                                                                                                                                         | Why, and what to avoid                                                                                                                                                                                                                                     |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VARCHAR` (no length) | Every STG business column                                                                                                                          | Text never fails to load: a bad value like `3.9O` still lands and is caught in TMP. A length in STG would only add a way to reject a row                                                                                                                   |
+| `VARCHAR(n)`          | TMP and TGT text: ids `VARCHAR(50)`, names `VARCHAR(100–200)`, descriptions `VARCHAR(500–1000)`, `EMAIL_TXT VARCHAR(254)`, `PHONE_NUM VARCHAR(30)` | Lengths document the contract (254 is the email maximum). Snowflake stores `VARCHAR(50)` and `VARCHAR` the same way, so it costs nothing. Ids stay text even when they look numeric (`1001`, `100006`): you never add them, and leading zeros must survive |
+| `NUMBER(18,2)`        | Money: `UNIT_PRICE_AMT`, `PROMO_PRICE_AMT`, `DISCOUNT_AMT`, `SALES_AMT`, `TAX_AMT`, `NET_SALES_AMT`                                                | Exact decimal with 2 places, room for large totals. **Never** `FLOAT` **for money**: `FLOAT` is approximate (0.1 + 0.2 = 0.30000000000000004) and reconciliation needs a variance of exactly 0                                                             |
+| `NUMBER(18,3)`        | Quantities: `SOLD_QTY`, `ON_HAND_QTY`, `RESERVED_QTY`, `AVAILABLE_QTY`, `IN_TRANSIT_QTY`                                                           | Fresh items are sold by weight (`0.750` kg), so quantities need 3 decimals                                                                                                                                                                                 |
+| `NUMBER(38,0)`        | Surrogate keys `*_KY`, counts `*_CNT`, `_SOURCE_ROW_NUM`                                                                                           | Whole numbers; the largest integer Snowflake has, so a sequence never runs out                                                                                                                                                                             |
+| `NUMBER(10,0)`        | `LINE_NUM`                                                                                                                                         | A small whole number                                                                                                                                                                                                                                       |
+| `NUMBER(8,0)`         | `DAY_KY` (`20261110`)                                                                                                                              | A readable date key that sorts and joins like a number                                                                                                                                                                                                     |
+| `DATE`                | `SALE_DT`, `SNAPSHOT_DT`, `CALENDAR_DT`, `EFFECTIVE_START_DT` / `EFFECTIVE_END_DT`, `_INGEST_DT`                                                   | Calendar day with no time part. Allows date filters and date maths                                                                                                                                                                                         |
+| `TIMESTAMP_NTZ`       | `_INGEST_TS`, `INSERT_TS`, `UPDATE_TS`, `QUARANTINED_TS`                                                                                           | Date + time, no time zone. Simplest to read when everything runs in one place                                                                                                                                                                              |
+| `BOOLEAN`             | `ACTIVE_FLG`, `CURRENT_FLG`, `WEEKEND_FLG`, `HOLIDAY_FLG`                                                                                          | Only TRUE / FALSE / NULL, so no guessing what `'Y'`, `'1'` or `'yes'` mean. The files send `Y`/`N`; TMP converts with `TRY_TO_BOOLEAN`                                                                                                                     |
+| `VARIANT`             | `TMP_QUARANTINE.RAW_RECORD`                                                                                                                        | Holds the whole rejected row as JSON (`OBJECT_CONSTRUCT(*)`), whatever table it came from                                                                                                                                                                  |
 
 **Lineage columns on every STG table:**
 
@@ -422,9 +431,9 @@ input was not NULL means "bad value": that row goes to `TMP_QUARANTINE`.
 
 ---
 
-<h2 id="4-dimensional-modelling">4. Dimensional modelling</h2>
+## 4. Dimensional modelling
 
-<h3 id="41-grain-facts-and-dimensions">4.1 Grain, facts and dimensions</h3>
+### 4.1 Grain, facts and dimensions
 
 - **Grain**: what one fact row means. Declare it before writing SQL.
 
@@ -440,7 +449,7 @@ input was not NULL means "bad value": that row goes to `TMP_QUARANTINE`.
 - **Degenerate dimension**: an id kept on the fact with no dimension table (`TRANSACTION_ID`).
 - **Rollup**: aggregate facts to a coarser grain by grouping on dimension attributes (net sales by region by day). Totals must equal the detail (gate G9).
 
-<h3 id="42-natural-keys-vs-surrogate-keys">4.2 Natural keys vs surrogate keys</h3>
+### 4.2 Natural keys vs surrogate keys
 
 - **Business (natural) key** `*_ID`: the source id (`ITEM_ID`, `LOCN_ID`). Used for matching and the PK checker.
 - **Surrogate key** `*_KY`: a warehouse key (`ITEM_KY`) that facts join on. It lets one business key have several SCD2 versions, and isolates Gold from source id changes.
@@ -452,7 +461,7 @@ input was not NULL means "bad value": that row goes to `TMP_QUARANTINE`.
 | Full rebuild | **New numbers**, so existing facts point at the wrong rows unless they're rebuilt too | Same keys, so facts remain valid |
 | Fits `NUMBER(38,0)` | Yes | `HASH` yes (tiny collision risk); `MD5` is a 32-char string, so no |
 
-<h3 id="43-hierarchies">4.3 Hierarchies</h3>
+### 4.3 Hierarchies
 
 - Product: `DIM_DEPARTMENT → DIM_CATEGORY → DIM_SUBCATEGORY → DIM_ITEM`.
 - Location: `DIM_DIVISION → DIM_REGION → DIM_CITY → DIM_LOCN`.
@@ -462,7 +471,7 @@ input was not NULL means "bad value": that row goes to `TMP_QUARANTINE`.
   - look up the parent's **current** key when inserting the child;
   - every child's parent key exists (no orphan children).
 
-<h3 id="44-slowly-changing-dimensions-scd">4.4 Slowly changing dimensions (SCD)</h3>
+### 4.4 Slowly changing dimensions (SCD)
 
 | Type | On change | Here |
 |---|---|---|
@@ -486,7 +495,7 @@ Re-run safety:
 - Process dates in order (`max_active_runs=1`). Running D+1 before D breaks the version chain.
 - Facts join to the version valid on the business date: `f.SALE_DT BETWEEN d.EFFECTIVE_START_DT AND d.EFFECTIVE_END_DT`.
 
-<h3 id="sec-4-5-facts">4.5 Fact types: sales, inventory soft-close, price periods</h3>
+### 4.5 Fact types: sales, inventory soft-close, price periods
 
 | Type | Grain | Example |
 |---|---|---|
@@ -494,7 +503,7 @@ Re-run safety:
 | Periodic snapshot | One row per entity per period | Daily stock per item × location |
 | Effective-dated (period) | One row per period during which values held | `FCT_PRICE`, and our `FCT_INVENTORY` |
 
-**`FCT_INVENTORY` (soft-close, departure 3).** Each day D:
+`FCT_INVENTORY` **(soft-close, departure 3).** Each day D:
 
 - a position that **changed** gets its open row closed (`EFFECTIVE_END_DT = D - 1`, `CURRENT_FLG = FALSE`) and a new row inserted with `SNAPSHOT_DT = D`;
 - an **unchanged** position stays open;
@@ -503,11 +512,11 @@ Re-run safety:
 Rows are never deleted, so history is auditable. Stock on date X is
 `WHERE X BETWEEN SNAPSHOT_DT AND EFFECTIVE_END_DT`. `AVAILABLE_QTY = ON_HAND_QTY - RESERVED_QTY` is derived in TMP.
 
-**`FCT_PRICE`.** Derived from the prices in the inventory snapshot: when `UNIT_PRICE_AMT` or
+`FCT_PRICE`**.** Derived from the prices in the inventory snapshot: when `UNIT_PRICE_AMT` or
 `PROMO_PRICE_AMT` changes for an item at a location, the open period is closed and a new one
 starts. Gate G10 checks that periods never overlap.
 
-<h3 id="46-orphans-and-late-arriving-dimensions">4.6 Orphans and late-arriving dimensions</h3>
+### 4.6 Orphans and late-arriving dimensions
 
 An **orphan** is a fact whose business key has no dimension row (a sale of an item missing from
 the item master). Options:
@@ -521,7 +530,7 @@ the item master). Options:
 This project follows the diagram: **G7 quarantines and alerts**. Reconciliation (G11) adds the
 quarantined amount back so Gold still ties to source.
 
-<h3 id="sec-4-7-aggregates">4.7 Aggregates and views</h3>
+### 4.7 Aggregates and views
 
 - `AGG_DAILY_ITEM_LOCN_SALES`: `FCT_SALES` grouped by `(DAY_KY, ITEM_KY, LOCN_KY)` with `SALES_LINE_CNT`, `SOLD_QTY`, `SALES_AMT`, `DISCOUNT_AMT`, `TAX_AMT`, `NET_SALES_AMT`.
 - Load: delete and recompute only the `DAY_KY` values touched by today's fact load.
@@ -530,9 +539,9 @@ quarantined amount back so Gold still ties to source.
 
 ---
 
-<h2 id="5-data-quality-quarantine-and-reconciliation">5. Data quality, quarantine and reconciliation</h2>
+## 5. Data quality, quarantine and reconciliation
 
-<h3 id="51-quarantine-never-drop">5.1 Quarantine, never drop</h3>
+### 5.1 Quarantine, never drop
 
 - A rejected row goes to `SILVER.TMP_QUARANTINE` **with the gate that rejected it**.
 - Counts are reported **every run**, not discovered a month later.
@@ -552,12 +561,12 @@ quarantined amount back so Gold still ties to source.
 | One duplicated transaction line | G4 | keep latest, quarantine the duplicate |
 | One store moves to another city | (not a defect) | SCD2 version on `DIM_LOCN` |
 
-<h3 id="sec-5-2-gates">5.2 Quality gates (red hexagons on the diagram)</h3>
+### 5.2 Quality gates (red hexagons on the diagram)
 
 | Gate | Boundary | Rule | Action |
 |---|---|---|---|
 | G1 | Source → STG | File arrives by SLA (sensor timeout); row count > 0 and matches the manifest when one exists | alert, then fail |
-| G2 | Source → STG | Header (or positional column count) matches the drop contract | quarantine file |
+| G2 | Source → STG | Header (or positional column count) matches the drop contract; explicit check on the staged file, because the transforming COPY ignores `ERROR_ON_COLUMN_COUNT_MISMATCH` | quarantine file |
 | G3 | STG → TMP | Business keys not null (`ITEM_ID`, `LOCN_ID`, `TRANSACTION_ID` + `LINE_NUM`, ...) | quarantine row |
 | G4 | STG → TMP | `(TRANSACTION_ID, LINE_NUM)` unique | keep latest, quarantine rest |
 | G5 | STG → TMP | `SALE_DT` between D−7 and D | quarantine row |
@@ -568,18 +577,18 @@ quarantined amount back so Gold still ties to source.
 | G9 | TGT → Aggregate | `AGG` totals = `FCT_SALES` totals per `DAY_KY` | fail |
 | G10 | TGT | No overlapping price periods per item and location | fail |
 | G11 | TGT → Source (departure 6) | Gold net sales + quarantined net sales = file net sales, per day | fail + alert |
-| G12 | STG → TMP (departure 8) | Values inside configurable outlier limits ([5.6](#sec-5-6-outliers)) | quarantine row + alert |
+| G12 | STG → TMP (departure 8) | Values inside configurable outlier limits ([5.6](#56-outliers-vs-anomalies-and-the-configurable-gate-g12)) | quarantine row + alert |
 
 Each gate is one SQL file under `include/sql/gates/` run by a DAG task. A "fail" gate raises
 `AirflowFailException`; a "quarantine" gate writes rows and lets the run continue.
 
-<h3 id="sec-5-3-pk-checker">5.3 PK checker</h3>
+### 5.3 PK checker
 
 One query per Gold table asserting that the natural key is unique. For SCD2 tables, that means
 one `CURRENT_FLG = TRUE` row per business key and no overlapping effective ranges. Any
 duplicate fails the task, because duplicates double-count facts.
 
-<h3 id="sec-5-4-reconciliation">5.4 Reconciliation (G11)</h3>
+### 5.4 Reconciliation (G11)
 
 Tie Gold back to source per day:
 
@@ -592,7 +601,7 @@ variance      = expected_gold − FCT_SALES net sales         (must be 0 for eve
 - The output is a 2-column, 5-row table (`DAY_KY | VARIANCE_AMT`) in `AUDIT`. Any non-zero row means fail the DAG and alert.
 - Use `COALESCE(SUM(...), 0)` on both sides, and compare amounts as `NUMBER(18,2)`, never floats.
 
-<h3 id="sec-5-5-retention-reload">5.5 Retention and the reload of one bad day D</h3>
+### 5.5 Retention and the reload of one bad day D
 
 | Layer | Retention | Why |
 |---|---|---|
@@ -613,7 +622,7 @@ Reload of day D (each step is idempotent, so a rerun is safe):
 6. SCD2 dims: undo versions opened or closed on D, then re-apply. `DIM_CUSTOMER`: SCD1 `MERGE`.
 7. Re-run G7–G11, then publish.
 
-<h3 id="sec-5-6-outliers">5.6 Outliers vs anomalies, and the configurable gate G12</h3>
+### 5.6 Outliers vs anomalies, and the configurable gate G12
 
 | | **Valid outlier** | **Anomaly** (a problem) |
 |---|---|---|
@@ -649,7 +658,7 @@ finance reports. Start wide, look at what gets caught, then tighten.
 
 ---
 
-<h2 id="6-idempotency-playbook">6. Idempotency playbook</h2>
+## 6. Idempotency playbook
 
 **Idempotent** means running the same date twice gives identical row counts and totals.
 
@@ -664,12 +673,12 @@ finance reports. Start wide, look at what gets caught, then tighten.
 1. **MERGE vs INSERT OVERWRITE vs NOT EXISTS:** MERGE when existing rows can change; INSERT OVERWRITE when the table is cheap to rebuild completely; NOT EXISTS when rows never change once written.
 2. **Deterministic vs sequence keys:** see [4.2](#42-natural-keys-vs-surrogate-keys). With sequences, inserts must be guarded by `NOT EXISTS` so a re-run doesn't take new numbers.
 3. **SCD2 recompute on re-run:** see [4.4](#44-slowly-changing-dimensions-scd). Compare hashes before closing; undo day D before correcting it.
-4. **Partition pruning by `_INGEST_DT` / `DAY_KY`:** see [3.5](#sec-3-5-partitions). Every reload is scoped to one day, so it stays cheap.
-5. **`COPY FORCE = TRUE` vs dedupe via staging:** `FORCE` ignores load history and duplicates data unless the day is deleted first. The alternative is to load into a staging table and insert with `NOT EXISTS` on (`_SOURCE_FILE`, `_SOURCE_ROW_NUM`).
+4. **Partition pruning by** `_INGEST_DT` **/** `DAY_KY`**:** see [3.5](#35-micro-partitions-pruning-and-the-diagrams-partitioning). Every reload is scoped to one day, so it stays cheap.
+5. `COPY FORCE = TRUE` **vs dedupe via staging:** `FORCE` ignores load history and duplicates data unless the day is deleted first. The alternative is to load into a staging table and insert with `NOT EXISTS` on (`_SOURCE_FILE`, `_SOURCE_ROW_NUM`).
 
 ---
 
-<h2 id="7-checks">7. Checks</h2>
+## 7. Checks
 
 No test framework. Each check below is either one command or a SQL query that runs as a task
 in the DAG, so a failure turns the task red.
@@ -683,7 +692,7 @@ in the DAG, so a failure turns the task red.
 
 ---
 
-<h2 id="8-docker-essentials">8. Docker essentials</h2>
+## 8. Docker essentials
 
 | Term | Meaning |
 |---|---|
@@ -696,7 +705,7 @@ in the DAG, so a failure turns the task red.
 
 ---
 
-<h2 id="9-glossary">9. Glossary</h2>
+## 9. Glossary
 
 | Term | Meaning |
 |---|---|

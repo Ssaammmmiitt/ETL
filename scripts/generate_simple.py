@@ -16,6 +16,7 @@ from pathlib import Path
 
 BUSINESS_DATE = "2026-11-10"
 DATE_NODASH = BUSINESS_DATE.replace("-", "")
+print("DATE_NODASH: ", DATE_NODASH)
 LANDING_DIR = Path(__file__).resolve().parent.parent / "data" / "landing"
 TAX_RATE = 0.08
 
