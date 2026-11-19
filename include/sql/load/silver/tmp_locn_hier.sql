@@ -1,0 +1,29 @@
+-- Full refresh of TMP_LOCN_HIER from today's STG_STORE_MASTER.
+INSERT OVERWRITE INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_LOCN_HIER (
+    LOCN_ID, LOCN_NM, LOCN_TYPE, ADDRESS_TXT, POSTAL_CD,
+    CITY_ID, CITY_NM, STATE_PROVINCE_NM, COUNTRY_NM,
+    REGION_ID, REGION_NM, DIVISION_ID, DIVISION_NM,
+    ACTIVE_FLG, _INGEST_DT
+)
+SELECT
+    TRIM(LOCN_ID),
+    NULLIF(TRIM(LOCN_NM), ''),
+    NULLIF(TRIM(LOCN_TYPE), ''),
+    NULLIF(TRIM(ADDRESS_TXT), ''),
+    NULLIF(TRIM(POSTAL_CD), ''),
+    TRIM(CITY_ID),
+    NULLIF(TRIM(CITY_NM), ''),
+    NULLIF(TRIM(STATE_PROVINCE_NM), ''),
+    NULLIF(TRIM(COUNTRY_NM), ''),
+    TRIM(REGION_ID),
+    NULLIF(TRIM(REGION_NM), ''),
+    TRIM(DIVISION_ID),
+    NULLIF(TRIM(DIVISION_NM), ''),
+    UPPER(TRIM(ACTIVE_FLG)) = 'Y',
+    _INGEST_DT
+FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_STORE_MASTER
+WHERE _INGEST_DT = '{{ ds }}'
+  AND NULLIF(TRIM(LOCN_ID), '') IS NOT NULL
+  AND NULLIF(TRIM(CITY_ID), '') IS NOT NULL
+  AND NULLIF(TRIM(REGION_ID), '') IS NOT NULL
+  AND NULLIF(TRIM(DIVISION_ID), '') IS NOT NULL;

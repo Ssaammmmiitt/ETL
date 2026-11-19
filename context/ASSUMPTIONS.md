@@ -3,7 +3,7 @@
 Single place for what this project assumes and why. Update this file when a decision changes.
 Detail lives in [THEORY.md](THEORY.md); the lesson plan is in [LESSONS.md](LESSONS.md); the
 target picture is [architecture-Simple view.png](architecture-Simple%20view.png).
-**Where we are in the course:** [PROGRESS.md](PROGRESS.md) (as of 18 Nov 2026: L1–L5 done, L6 in progress).
+**Where we are in the course:** [PROGRESS.md](PROGRESS.md) (as of 19 Nov 2026: L1–L11 done, L12 in progress).
 
 ---
 

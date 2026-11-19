@@ -1,15 +1,15 @@
 # Agent handoff: airflow-medallion
 
-Attach this file at the start of a new chat. Last updated **18 Nov 2026**.
+Attach this file at the start of a new chat. Last updated **19 Nov 2026**.
 
-**Status:** Lessons **1–5 done**. Lesson **6 in progress** (slim `generate_complex.py`: five days in `data/landing/`, ~800 lines/day; **no** history folder).
-Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `05_` (no `lesson` prefix).
+**Status:** Lessons **1–11 done**. Lesson **12 in progress** (idempotency proof + reload of day D; DAG `12_idempotency`).
+Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `12_` (no `lesson` prefix).
 
 ## 1. Start here
 
 1. Look at [`architecture-Simple view.png`](architecture-Simple%20view.png): the target. Every name comes from it.
-2. Read [`PROGRESS.md`](PROGRESS.md) → this file → [`LESSONS.md`](LESSONS.md) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest lesson in [`lessons/`](lessons/) (currently [`06_history_generator.md`](lessons/06_history_generator.md)).
-3. **Do not start Lesson 7** until the learner confirms the Lesson 6 checkpoint (section 7).
+2. Read [`PROGRESS.md`](PROGRESS.md) → this file → [`LESSONS.md`](LESSONS.md) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest lesson in [`lessons/`](lessons/) (currently [`12_idempotency.md`](lessons/12_idempotency.md)).
+3. **Do not start Lesson 13** until the learner confirms the Lesson 12 checkpoint (section 7).
    Lesson format: header → idea + terms → code walkthrough → run → remember → exercises → checkpoint → troubleshooting.
    DAG naming: `dags/NN_<topic>.py`, `dag_id="NN_<topic>"`, tags `["medallion", "NN"]`.
 4. After each lesson: write `context/lessons/NN_<topic>.md`, update `LESSONS.md` + `PROGRESS.md`, THEORY if needed, section 7 here, and `README.md`.
@@ -201,16 +201,26 @@ G6: 0 violations; no negative net.
 | 3 Stage PUT/LIST/COPY | Done |
 | 4 FileSensor + G1 | Done |
 | 5 Bronze DELETE+FORCE, G2, archive | Done (checkpoint passed) |
-| 6 History / complex generator | **In progress** |
-| 7–14 | Pending |
+| 6 History / complex generator | Done (19 Nov 2026) |
+| 7 Silver TMP + G3–G6 + G12 | Done (19 Nov 2026) |
+| 8 Gold dimensions | Done (19 Nov 2026) |
+| 9 Gold facts + G7/G8 | Done (19 Nov 2026) |
+| 10 Prove defects + PK/G10 | Done (19 Nov 2026) |
+| 11 Aggregate + recon + alert | Done (19 Nov 2026) |
+| 12 Idempotency + reload | **In progress** |
+| 13–14 | Pending |
 
-**Lesson 5 closed:** idempotent Bronze proven (5000 / 1502 / 101 / 25, net 2843788.51 on *simple* Nov 10). Archive under `data/archive/2026-11-10/`.
+**Lesson 9 closed:** FCT_SALES 807 / inv+price 1500 on Nov 10 (after G12); surrogate `*_KY` on facts; G7/G8.
 
-**Lesson 6 complex totals (slim generator):** **810** sales lines/day (Nov 11 = **811**); **400 txns** with per-store **12/14/16/18/20**; inventory **1501**; Nov 10 net **2819814.46**. No `data/history/`. Clean sales ⊆ stocked; defects D1–D5 planted (see ASSUMPTIONS).
+**Lesson 10 closed:** D1–D5 proved; `pk_*.sql`; G10; DAG `10_prove_defects`; Silver TMP DDL is `IF NOT EXISTS` so quarantine accumulates.
 
-**To close Lesson 6**, learner replies with checkpoint from [`lessons/06_history_generator.md`](lessons/06_history_generator.md) §6.7.
+**Lesson 11 closed:** AGG + VW; G9; G11 `RECON_DAILY_NET_SALES`; return-flag branch; Mailpit optional (§11.7).
 
-**Next after L6 checkpoint:** Lesson 7 — Silver TMP + G3–G6 + G12.
+**Lesson 12 artifacts:** `checks/idem_day_fingerprint.sql`, `ddl/audit/idem_day_snapshot.sql`, `dags/12_idempotency.py` (BEFORE → re-apply Silver/dims/facts/AGG → AFTER → assert), lesson [`12_idempotency.md`](lessons/12_idempotency.md).
+
+**To close Lesson 12**, learner replies with checkpoint from [`lessons/12_idempotency.md`](lessons/12_idempotency.md) §12.7.
+
+**Next after L12 checkpoint:** Lesson 13 — five-day backfill evidence.
 
 ## 8. Plan for the remaining lessons
 
@@ -220,12 +230,12 @@ G6: 0 violations; no negative net.
 | 4 | Waiting (G1) (**written**) | `dags/04_waiting.py`: FileSensor.partial.expand ×4; PUT; `assert_files_on_stage` (LIST + size); Assets taught in notes only |
 | 5 | Bronze (**written**) | `dags/05_bronze_load.py`: wait → PUT overwrite → G1 assert → G2 csv contract → DELETE+FORCE load → archive |
 | 6 | Generator v2 (**written**, slimmed 18 Nov) | `scripts/generate_complex.py`: five days → landing; ~800 lines/day; sales⊆stocked; Nov 10 outliers+anomalies; **D1–D5 planted**; history deferred; lesson [`06_history_generator.md`](lessons/06_history_generator.md) |
-| 7 | Silver TMP | Transient `TMP_SALES_LINE` (delta), `TMP_CUSTOMER` (members, `LAST_SEEN_DT`), `TMP_ITEM_LOC_SNAPSHOT` (`AVAILABLE_QTY`), `TMP_ITEM_HIER` and `TMP_LOCN_HIER` (overwrite); `TMP_QUARANTINE` (`GATE_ID`, `REASON_CD`, `RAW_RECORD = OBJECT_CONSTRUCT(*)`); gates G3–G6 and G6b. **G12 `gates/g12_outlier_limits.sql` reads `outlier_rules`, quarantines A1–A4, alerts.** Identity: STG = TMP + quarantined |
-| 8 | Gold dimensions | `DIM_DEPARTMENT → CATEGORY → SUBCATEGORY → ITEM` ‖ `DIM_DIVISION → REGION → CITY → LOCN` (SCD2: `EFFECTIVE_START_DT/END_DT`, `CURRENT_FLG`, `INSERT_TS/UPDATE_TS`); `ITEM_DESC` SCD1; `DIM_CUSTOMER` SCD1 MERGE; `DIM_DAY` from the seed; sequence vs `HASH` keys; MERGE vs INSERT OVERWRITE vs `NOT EXISTS` |
-| 9 | Gold facts + full DAG | `FCT_SALES` (MERGE on `TRANSACTION_ID, LINE_NUM`, `CLUSTER BY (DAY_KY)`), `FCT_INVENTORY` soft-close, `FCT_PRICE`; G7 (keys resolve), G8 (inventory ±20%); `medallion_daily` wait → bronze → silver → gold. Initial-load DAG **only if** long history is added later |
-| 10 | Prove defects + PK/G10 | Defects already in L6 files — prove G3/G4/G6/G7 + SCD2 on `DIM_LOCN`; PK checker `gates/pk_<table>.sql`; G10. No separate `generate_very_complex.py` unless needed |
-| 11 | Aggregate + recon + alerting | `AGG_DAILY_ITEM_LOCN_SALES`, `VW_DAILY_ITEM_LOCN_SALES`; G9; G11 writes `AUDIT.RECON_DAILY_NET_SALES (DAY_KY, VARIANCE_AMT)` = STG net − quarantined net (incl. G12) − FCT net; `reconcile` returns bool → `@task.branch` → `recon_passed` or `send_alert` (Mailpit) → `fail_run`; `on_failure_callback` |
-| 12 | Idempotency + reload of a bad day | Counts and sums before and after a second run must match; the diagram's reload policy for day D |
+| 7 | Silver TMP (**written**, closed) | DDL + loads + `07_silver`: G3–G6 + G12; G6b alert; identity; lesson [`07_silver.md`](lessons/07_silver.md) |
+| 8 | Gold dimensions (**written**, closed) | Sequences; IF NOT EXISTS dims; SCD2/SCD1/seed; DAG `08_gold_dims`; lesson [`08_gold_dims.md`](lessons/08_gold_dims.md) |
+| 9 | Gold facts (**written**, closed) | `FCT_*` + G7/G8; DAG `09_gold_facts`; lesson [`09_gold_facts.md`](lessons/09_gold_facts.md) |
+| 10 | Prove defects + PK/G10 (**written**, closed) | `10_prove_defects`: D1–D5 asserts; `pk_*.sql`; G10; lesson [`10_prove_defects.md`](lessons/10_prove_defects.md) |
+| 11 | Aggregate + recon (**written**, closed) | AGG + VW; G9; G11 recon; return-flag branch; Mailpit optional; lesson [`11_agg_recon.md`](lessons/11_agg_recon.md) |
+| 12 | Idempotency + reload (**written**) | Fingerprint + `12_idempotency`; BEFORE/AFTER assert; reload-of-D policy in lesson; [`12_idempotency.md`](lessons/12_idempotency.md) |
 | 13 | Five-day backfill | 10, 11, 12, 13, 16 Nov, every task green |
 | 14 | README + acceptance | Parse, hard-coding and DQ checks; 2 × 5 recon table; all 5 acceptance criteria |
 

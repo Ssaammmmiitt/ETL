@@ -126,6 +126,14 @@ services:
       start_period: 30s
     restart: always
 
+  # Lesson 11: local SMTP catcher (UI http://localhost:8025, SMTP port 1025).
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: always
+
   airflow-apiserver:
     <<: *airflow-common
     command: api-server

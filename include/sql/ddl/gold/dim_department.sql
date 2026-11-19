@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.gold }}.DIM_DEPARTMENT (
+    DEPARTMENT_KY       NUMBER(38,0)  NOT NULL,
+    DEPARTMENT_ID       VARCHAR(50)   NOT NULL,
+    DEPARTMENT_NM       VARCHAR(200),
+    DEPARTMENT_DESC     VARCHAR(500),
+    EFFECTIVE_START_DT  DATE          NOT NULL,
+    EFFECTIVE_END_DT    DATE          NOT NULL,
+    CURRENT_FLG         BOOLEAN       NOT NULL,
+    INSERT_TS           TIMESTAMP_NTZ NOT NULL,
+    UPDATE_TS           TIMESTAMP_NTZ NOT NULL,
+    CONSTRAINT PK_DIM_DEPARTMENT PRIMARY KEY (DEPARTMENT_KY)
+)
+COMMENT = 'Product hierarchy root — SCD2';

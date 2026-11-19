@@ -7,3 +7,4 @@ data/history/
 logs/
 config/
 __pycache__/
+context/lessons/

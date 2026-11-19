@@ -31,8 +31,9 @@ New chat with an agent? Give it [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) first.
 | 3 | Internal stage: PUT / LIST / COPY into STG | **Done** |
 | 4 | FileSensor, Assets trade-off, gate G1 | **Done** |
 | 5 | Bronze: idempotent DELETE+FORCE, G2, archive | **Almost done** — DAG and docs written; finish checkpoint (2nd run + exercises) then reply |
-| 6 | Complex five-day generator (history deferred) | **In progress** |
-| 7–14 | Silver → Gold → recon → backfill → README | **Pending** |
+| 6 | Complex five-day generator (history deferred) | **Done** |
+| 7 | Silver TMP + G3–G6 + G12 | **In progress** |
+| 8–14 | Gold → recon → backfill → README | **Pending** |
 
 **Built and working in Snowflake (day 2026-11-10):**
 - Schemas `BRONZE` / `SILVER` / `GOLD` / `AUDIT`, role, service user, warehouse
@@ -40,7 +41,7 @@ New chat with an agent? Give it [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) first.
 - Empty-then-loaded STG tables with lineage; row counts **5000 / 1502 / 101 / 25**; net **2,843,788.51**
 - DAGs `01_` … `05_` (no `lesson` prefix); landing files archived under `data/archive/2026-11-10/`
 
-**Not built yet:** Silver TMP, Gold dims/facts, recon G11, five-day backfill. Planted defects are **in L6 data**; L10 proves gates/PK/SCD2. Long history optional/deferred.
+**Not built yet:** Five-day backfill (L13), final README (L14). L12 idempotency in progress. Long history deferred.
 
 ## Decisions
 
@@ -92,29 +93,29 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 
 ### Pipeline shape
 
-- [ ] Stages `wait → bronze → silver → gold → reconcile` (L9, L11)
+- [x] Stages `wait → bronze → silver → gold → reconcile` (L9, L11)
 - [x] Sensor on all four files with `timeout`, `poke_interval`, `mode='reschedule'` (gate G1) (L4)
 - [x] Datasets/Assets taught, trade-off explained, FileSensor picked (L4)
 - [x] Mapped ingest: one STG load task per file (L5: `load_stg_*`; sensors use `.expand`)
-- [ ] Silver TMP: clean, dedupe, validate, gates G3–G6 + G12 (L7)
-- [ ] Gold TGT: dimensions first, then facts (L8, L9)
-- [ ] Gold Aggregate: `AGG_DAILY_ITEM_LOCN_SALES` + `VW_DAILY_ITEM_LOCN_SALES`, gate G9 (L11)
-- [ ] Reconciliation task (G11) that fails the DAG (L11)
-- [ ] Idempotent: second run for the same date changes nothing (L12)
+- [x] Silver TMP: clean, dedupe, validate, gates G3–G6 + G12 (L7)
+- [x] Gold TGT: dimensions first, then facts (L8, L9)
+- [x] Gold Aggregate: `AGG_DAILY_ITEM_LOCN_SALES` + `VW_DAILY_ITEM_LOCN_SALES`, gate G9 (L11)
+- [x] Reconciliation task (G11) that fails the DAG (L11)
+- [~] Idempotent: second run for the same date changes nothing (L12)
 - [ ] Five-day backfill (10, 11, 12, 13, 16 Nov) all green (L13)
 
 ### Source data
 
 - [~] `sales`, `inventory`, `item_master`, `store_master` files for 5 dates (L2 simple: 1 date; L6 complex + defects)
-- [~] `seed_dim_day.csv` generated and version controlled (L2 generated; L8 loaded)
-- [~] Hierarchies: item → subcategory → category → department; locn → city → region → division (L6 files; L8 dims)
-- [~] Defect 1: two rows with null `ITEM_ID` (planted L6 on 2026-11-11; G3 proven L7)
-- [~] Defect 2: one negative `SOLD_QTY` (planted L6 on 2026-11-11; G6 proven L7)
-- [~] Defect 3: one sale for item missing from item master (`199999`, planted L6 on 2026-11-12; G7 proven L9)
-- [~] Defect 4: one duplicated transaction line (planted L6 on 2026-11-11; G4 proven L7)
-- [~] Defect 5: store `1008` moves city Spokane→Portland from 2026-11-13 (planted L6; SCD2 proven L8/L10)
+- [x] `seed_dim_day.csv` generated and version controlled (L2 generated; L8 loaded)
+- [x] Hierarchies: item → subcategory → category → department; locn → city → region → division (L6 files; L8 dims)
+- [x] Defect 1: two rows with null `ITEM_ID` (planted L6 on 2026-11-11; G3 proven L7)
+- [x] Defect 2: one negative `SOLD_QTY` (planted L6 on 2026-11-11; G6 proven L7)
+- [x] Defect 3: one sale for item missing from item master (`199999`, planted L6 on 2026-11-12; G7 in L9; proved L10)
+- [x] Defect 4: one duplicated transaction line (planted L6 on 2026-11-11; G4 proven L7)
+- [x] Defect 5: store `1008` moves city Spokane→Portland from 2026-11-13 (planted L6; SCD2 proved L10)
 - [~] Valid outliers (premium 2,499.99 item, 0.05 item, 480-unit buy, 0.005 kg, zero net, zero / 25,000 stock) kept end to end (L2 planted; L7–L11 verified)
-- [~] Anomalies (price ×1000, 10,000 qty, price ÷100, 9,999,999 stock) caught by **configurable gate G12** (L2 planted; L7 solved)
+- [x] Anomalies (price ×1000, 10,000 qty, price ÷100, 9,999,999 stock) caught by **configurable gate G12** (L2 planted; L7 solved)
 
 ### Snowflake
 
@@ -123,26 +124,26 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 - [x] `LIST @stage` in validation (L3 list; L4/L5 `assert_files_on_stage` = G1 presence)
 - [x] Gate G2 column-count / header check before COPY (L5: `g2_check_*`)
 - [x] Idempotent Bronze: `DELETE WHERE _INGEST_DT` + `COPY FORCE` + archive (L5)
-- [ ] Surrogate keys `*_KY` for every DIM (sequence and hash compared) (L8)
-- [ ] SCD2 on hierarchy dims; planted change on `DIM_LOCN` (L8, L10)
-- [ ] SCD1: `DIM_CUSTOMER` and `DIM_ITEM.ITEM_DESC` (L8)
+- [x] Surrogate keys `*_KY` for every DIM (sequence and hash compared) (L8)
+- [x] SCD2 on hierarchy dims; planted change on `DIM_LOCN` (L8; D5 proved L10)
+- [x] SCD1: `DIM_CUSTOMER` and `DIM_ITEM.ITEM_DESC` (L8)
 - [x] Positional load: `COPY INTO STG_INVENTORY` by `$1..$8`; all 4 STG loads use transforming COPY for lineage (L3, L5)
-- [ ] Hierarchy parent → child keys preserved (L8)
-- [ ] Parallel dimension loads (task groups / mapping) (L8)
-- [ ] Joins and rollup for fact builds and the aggregate (L9, L11)
-- [ ] TMP → TGT incremental inserts with `NOT EXISTS` (L8, L9)
-- [ ] PK checker on every Gold table (L10)
-- [ ] `FCT_INVENTORY` soft-closed (`EFFECTIVE_END_DT` / `CURRENT_FLG`), never deleted (L9)
-- [ ] `FCT_PRICE` periods, no overlaps (G10) (L9, L10)
-- [ ] `DIM_DAY` seeded straight into Gold (departure) (L8)
-- [ ] NULL handling everywhere: `COALESCE`, `NULLIF`, `TRY_TO_*` (L7)
+- [x] Hierarchy parent → child keys preserved (L8)
+- [x] Parallel dimension loads (product ‖ location after DIM_DAY) (L8)
+- [~] Joins and rollup for fact builds and the aggregate (L9 facts; L11 agg)
+- [x] TMP → TGT incremental inserts with `NOT EXISTS` / MERGE (L8, L9)
+- [x] PK checker on every Gold table (L10)
+- [x] `FCT_INVENTORY` soft-closed (`EFFECTIVE_END_DT` / `CURRENT_FLG`), never deleted (L9)
+- [x] `FCT_PRICE` periods, no overlaps (G10) (L9, L10)
+- [x] `DIM_DAY` seeded straight into Gold (departure) (L8)
+- [x] NULL handling everywhere: `COALESCE`, `NULLIF`, `TRY_TO_*` (L7)
 
 ### Reconciliation and alerting
 
-- [ ] Two-column, five-row table (`DAY_KY | VARIANCE_AMT`) (L11)
-- [ ] DAG fails if any variance ≠ 0 (L11)
-- [ ] Alert via `EmailOperator` / `on_failure_callback` with SMTP connection (L11)
-- [ ] Return-flag pattern: task returns bool → downstream branch (L11)
+- [x] Two-column, five-row table (`DAY_KY | VARIANCE_AMT`) (L11)
+- [x] DAG fails if any variance ≠ 0 (L11)
+- [~] Alert via `EmailOperator` / `on_failure_callback` with SMTP connection (L11)
+- [x] Return-flag pattern: task returns bool → downstream branch (L11)
 
 ### Engineering rules
 
@@ -153,9 +154,9 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 
 ### Idempotency notes to teach
 
-- [ ] MERGE vs INSERT OVERWRITE vs `NOT EXISTS` (L7, L8)
-- [ ] Deterministic surrogate keys vs sequence keys on re-runs (L8)
-- [ ] SCD2 effective-date recompute on re-run (L10)
+- [~] MERGE vs INSERT OVERWRITE vs `NOT EXISTS` (L7, L8)
+- [~] Deterministic surrogate keys vs sequence keys on re-runs (L8)
+- [x] SCD2 effective-date recompute on re-run (L10)
 - [~] Partition pruning by `_INGEST_DT` / `DAY_KY` (L5 taught; L7+)
 - [~] `COPY INTO ... FORCE = TRUE` after `DELETE WHERE _INGEST_DT` (L5 — almost done)
 
@@ -167,11 +168,11 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 
 ### Acceptance criteria
 
-- [ ] 1. Second run for the same date changes no counts and no totals (L12)
+- [~] 1. Second run for the same date changes no counts and no totals (L12)
 - [ ] 2. Five-day backfill completes with every task green (L13)
-- [ ] 3. Broken records quarantined and counted, run continues (L10)
+- [x] 3. Broken records quarantined and counted, run continues (L10)
 - [~] 4. No credentials, paths or table names in DAG files (check from L1)
-- [ ] 5. Gold net sales ties to source for all five days (L11)
+- [x] 5. Gold net sales ties to source for all five days (L11)
 
 ## Target folder structure
 
@@ -267,12 +268,12 @@ Theory column = sections of [`THEORY.md`](THEORY.md) to read before the lesson.
 | 3 | [Internal stage: `PUT`/`LIST`/`COPY`, positional load](lessons/03_stages_copy.md) | Simple (1 day) | 3.3, 3.4 | Done (18 Nov 2026) |
 | 4 | [Waiting: FileSensor vs Assets, gate G1](lessons/04_waiting.md) | Simple (1 day) | 2.7, 2.8, 3.3, 5.2 | Done (18 Nov 2026) |
 | 5 | [Bronze load: idempotent COPY, G2, archive](lessons/05_bronze_load.md) | Simple (1 day) | 2.4, 2.9, 3.4, 3.5, 5.2, 6 | Done (18 Nov 2026) |
-| 6 | [Generator v2: five days (~810 lines, txns 12/14/16/18/20), sales⊆stock, D1–D5; history deferred](lessons/06_history_generator.md) | Complex | 4.1, 4.3 | **In progress** |
-| 7 | Silver: the 5 TMP tables + `TMP_QUARANTINE`, gates G3–G6 and G12 (configurable outliers) | Complex | 3.6, 3.7, 3.10, 5.1, 5.2, 5.6 | Pending |
-| 8 | Gold TGT dimensions: 8 hierarchy dims (SCD2), `DIM_CUSTOMER` (SCD1), `DIM_DAY` seed, surrogate keys, parallel loads | Complex | 4.2, 4.3, 4.4, 3.6, 2.9, 6 | Pending |
-| 9 | Gold TGT facts: `FCT_SALES`, `FCT_INVENTORY` (soft-close), `FCT_PRICE`; gates G7, G8; full wait → gold DAG; history bulk load **only if** history is added later | Complex | 4.1, 4.5, 3.6, 5.2 | Pending |
-| 10 | Prove planted defects (G3/G4/G6/G7 + SCD2 on `DIM_LOCN`), PK checker, gate G10 | Very complex | 4.4, 4.6, 3.8, 5 | Pending |
-| 11 | Aggregate + view (G9), reconciliation 2×5 table (G11), return-flag branch, SMTP alert | Very complex | 4.7, 5.4, 2.10, 2.11 | Pending |
-| 12 | Idempotency proof and the reload of one bad day | Very complex | 6, 5.5 | Pending |
+| 6 | [Generator v2: five days (~810 lines, txns 12/14/16/18/20), sales⊆stock, D1–D5; history deferred](lessons/06_history_generator.md) | Complex | 4.1, 4.3 | Done (19 Nov 2026) |
+| 7 | [Silver: TMP tables + TMP_QUARANTINE, gates G3–G6 and G12](lessons/07_silver.md) | Complex | 3.6, 3.7, 3.10, 5.1, 5.2, 5.6 | Done (19 Nov 2026) |
+| 8 | [Gold TGT dimensions: SCD2 hierarchies, SCD1 customer, DIM_DAY seed](lessons/08_gold_dims.md) | Complex | 4.2, 4.3, 4.4, 3.6, 2.9, 6 | Done (19 Nov 2026) |
+| 9 | [Gold TGT facts: FCT_SALES, soft-close inventory, FCT_PRICE, G7/G8](lessons/09_gold_facts.md) | Complex | 4.1, 4.5, 3.6, 5.2 | Done (19 Nov 2026) |
+| 10 | [Prove planted defects, PK checker, gate G10](lessons/10_prove_defects.md) | Very complex | 4.4, 4.6, 3.8, 5 | Done (19 Nov 2026) |
+| 11 | [Aggregate + view (G9), reconciliation (G11), return-flag branch](lessons/11_agg_recon.md) | Very complex | 4.7, 5.4, 2.10, 2.11 | Done (19 Nov 2026) |
+| 12 | [Idempotency proof and the reload of one bad day](lessons/12_idempotency.md) | Very complex | 6, 5.5 | **In progress** |
 | 13 | Five-day backfill, every task green, evidence | Very complex | 2.4 | Pending |
 | 14 | README, acceptance-criteria walkthrough | Very complex | 7 | Pending |

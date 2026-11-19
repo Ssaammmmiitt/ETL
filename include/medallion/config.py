@@ -7,6 +7,7 @@ from pathlib import Path
 
 SNOWFLAKE_CONN_ID = "snowflake_medallion"
 LANDING_FS_CONN_ID = "fs_landing"
+SMTP_CONN_ID = "smtp_default"
 CONFIG_VARIABLE = "medallion_config"
 
 # Folder with all SQL files, found relative to this file so no absolute path is hard-coded.
