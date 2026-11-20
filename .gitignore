@@ -4,7 +4,10 @@ secrets/*
 data/landing/*.csv
 data/archive/**/*.csv
 data/history/
+data/store/*.txt
 logs/
 config/
 __pycache__/
-context/lessons/
+**/LESSONS.md
+**/PROGRESS.md
+**/lessons/

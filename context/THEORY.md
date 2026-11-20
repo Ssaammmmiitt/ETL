@@ -139,9 +139,9 @@ the source system to resend files.
 
 - **Logical date** (`{{ ds }}` = `YYYY-MM-DD`, `{{ ds_nodash }}` = `YYYYMMDD`): the date a run *represents*. Each run processes only its own date; that is what makes reruns and backfills safe. In this project `ds` is day **D**: it becomes `_INGEST_DT` in STG and `DAY_KY` in Gold.
 - Airflow 3 cron schedules use `CronTriggerTimetable` by default: the run for `2026-11-10 06:00` starts at that time and its `ds` is `2026-11-10`. (Airflow 2 used data intervals: the run for day D started at the *end* of D.)
-- `0 6 * * 1-5` = 06:00 Monday–Friday, so 10–16 Nov 2026 gives runs for 10, 11, 12, 13 and 16.
+- `0 6 * * *` = 06:00 every calendar day. This project uses five consecutive days **10–14 Nov 2026** (no weekend/holiday skip).
 - **catchup** (default `False` in Airflow 3): whether the scheduler creates runs for past dates automatically.
-- **Backfill** (Airflow 3): `airflow backfill create --dag-id X --from-date 2026-11-10 --to-date 2026-11-16`. Runs are executed by the scheduler and show in the UI. Options include `--reprocess-behavior` (`none`, `failed`, `completed`) and `--max-active-runs`.
+- **Backfill** (Airflow 3): `airflow backfill create --dag-id X --from-date 2026-11-10 --to-date 2026-11-14`. Runs are executed by the scheduler and show in the UI. Options include `--reprocess-behavior` (`none`, `failed`, `completed`) and `--max-active-runs`.
 - `max_active_runs=1`: one run at a time. Required when a run depends on the previous date's result (SCD2, inventory soft-close, price periods, gate G8).
 
 ### 2.5 TaskFlow API and XCom
@@ -417,7 +417,7 @@ The types below are the ones on the diagram's *Medallion Architecture* page.
 
 | Column | Type | Why |
 |---|---|---|
-| `_INGEST_DT` | `DATE` | The business day D the file belongs to (`{{ ds }}`). The diagram's partition: delete or reload one day with `WHERE _INGEST_DT = ...` |
+| `_INGEST_DT` | `DATE` | The pipeline day D the file belongs to (`{{ ds }}`). The diagram's partition: delete or reload one day with `WHERE _INGEST_DT = ...` |
 | `_SOURCE_FILE` | `VARCHAR` | Which file the row came from |
 | `_SOURCE_ROW_NUM` | `NUMBER` | Line number in that file, so a quarantined row can be found in the original file |
 | `_INGEST_TS` | `TIMESTAMP_NTZ` | When the row was loaded (default `CURRENT_TIMESTAMP()`) |

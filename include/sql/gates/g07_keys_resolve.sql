@@ -1,12 +1,12 @@
 -- Gate G7: sales lines whose ITEM_ID / LOCN_ID do not resolve to a *current* dim key.
 -- Quarantine only (alert is a DAG task). Idempotent clear of prior G7 rows for day D.
 
-DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
  WHERE INGEST_DT = '{{ ds }}'
    AND GATE_ID = 'G7'
    AND OBJECT_NM = 'FCT_SALES';
 
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     t._INGEST_DT,

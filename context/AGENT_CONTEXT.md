@@ -1,16 +1,15 @@
 # Agent handoff: airflow-medallion
 
-Attach this file at the start of a new chat. Last updated **19 Nov 2026**.
+Attach this file at the start of a new chat. Last updated **20 Nov 2026**.
 
-**Status:** Lessons **1–11 done**. Lesson **12 in progress** (idempotency proof + reload of day D; DAG `12_idempotency`).
-Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `12_` (no `lesson` prefix).
+**Status:** Lessons **1–13 done**. Lesson **14 in progress** (ultimate DAG `14_medallion_daily`).
+Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `14_` (no `lesson` prefix).
 
 ## 1. Start here
 
 1. Look at [`architecture-Simple view.png`](architecture-Simple%20view.png): the target. Every name comes from it.
-2. Read [`PROGRESS.md`](PROGRESS.md) → this file → [`LESSONS.md`](LESSONS.md) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest lesson in [`lessons/`](lessons/) (currently [`12_idempotency.md`](lessons/12_idempotency.md)).
-3. **Do not start Lesson 13** until the learner confirms the Lesson 12 checkpoint (section 7).
-   Lesson format: header → idea + terms → code walkthrough → run → remember → exercises → checkpoint → troubleshooting.
+2. Read [`PROGRESS.md`](PROGRESS.md) → this file → [`LESSONS.md`](LESSONS.md) → [`ASSUMPTIONS.md`](ASSUMPTIONS.md) → [`THEORY.md`](THEORY.md) → latest lesson in [`lessons/`](lessons/) (currently [`14_medallion_daily.md`](lessons/14_medallion_daily.md)).
+3. Lesson 14 is the stitch: **one ds-driven daily DAG** + Airflow 3 backfill/Trigger (not five TaskGroups in one run). Lesson format as usual.
    DAG naming: `dags/NN_<topic>.py`, `dag_id="NN_<topic>"`, tags `["medallion", "NN"]`.
 4. After each lesson: write `context/lessons/NN_<topic>.md`, update `LESSONS.md` + `PROGRESS.md`, THEORY if needed, section 7 here, and `README.md`.
 
@@ -42,8 +41,9 @@ Quick map: [`PROGRESS.md`](PROGRESS.md). DAG ids: `01_` … `12_` (no `lesson` p
 | Airflow | Existing **3.3.2** official image + Docker Compose (CeleryExecutor). Teach the brief's 2.x names next to the 3.x ones |
 | History | **Deferred.** L6 generates **five pipeline days only** (~800 sales lines/day). Long Jan–Nov history can be added later if Gold/statistical G12 needs it; L9 initial-load DAG only if/when history exists |
 | Sales vs stock | Complex generator: clean sales `ITEM_ID` ∈ store stocked set; **one** planted orphan `199999` for G7 |
-| Planted defects | In L6 data: D1 null ITEM_ID×2 (11 Nov), D2 neg qty (11), D4 dup line (11, 811 rows), D3 orphan (12), D5 `LOCN 1008` CITY_ID Spokane→Portland from 13 Nov (SCD2). Per-store txns cycle 12/14/16/18/20 (400 total) |
-| Dates | Weekdays **10, 11, 12, 13, 16 Nov 2026**; schedule `0 6 * * 1-5`; `airflow backfill create --dag-id medallion_daily --from-date 2026-11-10 --to-date 2026-11-16`; `max_active_runs=1` (SCD2 and soft-close depend on day order) |
+| Planted defects | **Calendar buckets** in `generate_complex.py`: `date.toordinal() % 5` exclusive — `0` outliers/anomalies · `1` null ITEM_ID ×2 (D1) · `2` neg qty (D2) · `3` orphan `199999` (D3) · `4` dup line (D4). **D5 SCD2** separate: `LOCN 1008` CITY_ID Spokane→Portland from **`SCD2_FROM` = 2026-11-13** onward. **SCD1**: item `100011` desc "(rev Nov)" from **`SCD1_FROM` = 2026-11-14**. Stock replayed from `STOCK_ANCHOR` = 2026-11-10 (deterministic per date). Each planted line appends to `data/store/defect_log.txt` (includes **store** id). Per-store txns still cycle 12/14/16/18/20 (400 total). Nov 10–14 map: outliers → null → neg → orphan → dup (buckets 0–4); 20 Nov = outliers |
+| Evidence / tests | `evidence/sql/r1–r4*.sql` + `evidence/run_queries.py` (`report` → ONE file per run: `day_<ds>.md` / `backfill_<from>_to_<to>.md` with verdict table first; `snapshot` → `rerun_<ds>.md`; `reset --yes`) → `evidence/query-results/`; screenshots in `evidence/screenshots/`; `tests/run_all.py` (13 checks, no pytest) → `evidence/query-results/tests.txt`. **UI trigger pitfall:** logical date is entered in local time (UTC+5:45) → 20 Nov 00:00 local = 19 Nov UTC = `ds` 2026-11-19; set the UI timezone to UTC or use `dags test`. For today's date, **Clear** the auto-created `scheduled__<today>` run instead of triggering a new one. **Rerun proof = latest loaded day only** (14 Nov): re-running an older day after newer ones breaks SCD2/soft-close "current" rows (seen 20 Nov with 12 Nov rerun). Compose mounts `./evidence`, `./tests`. Both 14 DAGs `retries=1` |
+| Dates / L14 runs | Demo window still **10–14 Nov 2026** (add 15 for orphan). DAG `14_medallion_daily`: `schedule="@daily"`, `catchup=False`, `is_paused_upon_creation=True`, `max_active_runs=1`. First task **`generate_landing_day`** writes **this `ds` only**. Drive dates via UI Backfill/Trigger or `airflow backfill create --dag-id 14_medallion_daily --from-date … --to-date …`. Do **not** leave logical date as “today” unless you intend that day |
 | Stages | Internal stage `@my_int_stage` only. **External stage and storage integration dropped** by the learner on 18 Nov (no S3/Azure/GCS): departure 9. Don't teach or write them; list it in README limitations |
 | Auth | Key pair, `AIRFLOW_SVC` `TYPE = SERVICE`; key file `secrets/rsa_key.p8` mounted read-only; connection extra `private_key_file` |
 | Connections | Imported from `secrets/connections.json` (template `include/config/connections.example.json`) |
@@ -95,8 +95,8 @@ airflow-medallion/
 ├── include/sql/  setup/00_bootstrap.sql, 01_file_formats.sql, 02_stages.sql
 │                 ddl/bronze/stg_*.sql (4) · load/bronze/stg_*.sql (4 COPY) · stage/put_file.sql (params.source)
 │                 checks/whoami.sql, list_stage.sql
-├── scripts/      generate_simple.py (L2), generate_seed_dim_day.py
-├── data/         landing/ (git-ignored) · archive/ · seed/seed_dim_day.csv (versioned)
+├── scripts/      generate_simple.py (L2), generate_complex.py (calendar defects), generate_seed_dim_day.py
+├── data/         landing/ · archive/ · store/defect_log.txt (append-only; gitignored *.txt) · seed/seed_dim_day.csv
 └── secrets/  plugins/
 ```
 
@@ -207,20 +207,22 @@ G6: 0 violations; no negative net.
 | 9 Gold facts + G7/G8 | Done (19 Nov 2026) |
 | 10 Prove defects + PK/G10 | Done (19 Nov 2026) |
 | 11 Aggregate + recon + alert | Done (19 Nov 2026) |
-| 12 Idempotency + reload | **In progress** |
-| 13–14 | Pending |
+| 12 Idempotency + reload | Done (19 Nov 2026; reload drill deferred) |
+| 13 Five-day backfill | Done (19 Nov 2026) |
+| 14 Ultimate medallion DAG | **In progress** |
 
-**Lesson 9 closed:** FCT_SALES 807 / inv+price 1500 on Nov 10 (after G12); surrogate `*_KY` on facts; G7/G8.
+**Lesson 13 closed:** five consecutive days 10–14; evidence green.
 
-**Lesson 10 closed:** D1–D5 proved; `pk_*.sql`; G10; DAG `10_prove_defects`; Silver TMP DDL is `IF NOT EXISTS` so quarantine accumulates.
+**Lesson 14 artifacts (Option 1 — single-day + backfill):**  
+- `dags/14_medallion_daily.py` is the **only DAG** (20 Nov: lesson DAGs 01–13, `14_generate_source`, `scripts/run_pipeline_days.ps1` deleted; 01–13 recoverable with `git restore dags/<file>`). Shape: `setup_platform` (all DDL IF NOT EXISTS via `runner.ddl_files()`, one session) → `generate_landing_day` → `wait_for_files` → bronze (mapped) → silver → gold_dims → gold_facts → reconcile; `max_active_runs=1`; starts paused. SQL tasks built by `sql_task(path)` (task_id = `load_<table>` / file stem); Snowflake helpers in `include/medallion/runner.py` (`run_sql_files`, `fetch`, `g2_check`, `list_stage`, `generate_day`). Gate tasks (20 Nov): G1 `wait_for_files` + `bronze.assert_stage_g1` + no-data-row check in `g2_check`; G2 `bronze.ingest_one`; G3–G6/G12 inside `load_tmp_sales_line` (G12 on-hand inside `load_tmp_item_loc_snapshot`); `silver.assert_sales_identity`; `silver.g06b_alert`; `gold_facts.g07_keys_resolve` + `g07_alert`; `gold_facts.g08_inventory_count` (`G8_MAX_DRIFT` in config.py); `gold_facts.g10_price_overlap`; `reconcile.assert_recon_day` (G9 + G11); `reconcile.assert_primary_keys` (13 `pk_*.sql`). Alerts are task log lines (no email yet). Unused SQL deleted (whoami, g01_list_stage, g02_column_count, g01_files_have_rows, idem_day_snapshot DDL); test `every_sql_file_is_used` guards it.  
+- **Fresh-start rework (20 Nov, afternoon):** DAG renamed `retail_medallion_daily` (file `dags/retail_medallion_daily.py`; old `14_medallion_daily` metadata to delete). `TMP_QUARANTINE` replaced by physical `AUDIT.C_REJ_TABLE` (same columns; written by Silver gates + G7). `RECON_DAILY_NET_SALES` replaced by `AUDIT.RECON_DAILY_CHECKS` (5 rows/day: ROW_COUNT, AMOUNT, ORPHANS (`ORPHAN_MAX_PCT` 1 % in config.py, DAG param), FRESHNESS, DUPLICATES); task `reconcile.assert_reconciliation` fails on any non-PASS. Bronze DDL fixed from `CREATE OR REPLACE` to `IF NOT EXISTS` (it wiped STG history every run). `setup/00_schemas.sql` lets `setup_platform` recreate dropped schemas. Rewind writes `C_PARAM` `GOLD_REWOUND_FROM`. Copy-paste Snowsight SQL in `evidence/snowsight/00–07`; run order and screenshot names in `context/runbook.md`. Only the Simple view page of the drawio was updated; page 1 still shows TMP_QUARANTINE / Parquet / manifest.  
+- **Control tables (20 Nov, AUDIT schema):** `C_BATCH_SCRIPTS` (seed `load/audit/c_batch_scripts.sql`, task `load_c_batch_scripts`; test `batch_scripts_registry_matches_dag` keeps it equal to the DAG), `C_PARAM` (`load_c_param`), `C_BATCH_LOG` (default_args callbacks `runner.log_success/log_failure/log_retry` → `load/audit/c_batch_log.sql`, never raise), `C_REJ_TABLE` (view `ddl/audit/vw_c_rej_table.sql` over `TMP_QUARANTINE`), `C_LOAD_DATES` (final task `load_c_load_dates`). **Reload one bad day:** `gold_dims.rewind_gold_for_reload` → `runner.rewind_gold_if_past_day` runs `load/gold/rewind_from_ds.sql` when ds < Gold `LAST_LOAD_DT`; then replay D → latest. Task-by-task notes: `final_state.md`.  
+- `scripts/generate_complex.py`: `defect_bucket` / `append_defect_log`; `generate_pipeline_days([ds], …)`.  
+- `data/store/defect_log.txt`: append-only defect audit (store-tagged).  
+- Lesson [`14_medallion_daily.md`](lessons/14_medallion_daily.md). Multi-day via UI Backfill / `airflow backfill create` / serial Trigger or `dags test` — **not** five TaskGroups in one run.  
+- Airflow 3: `schedule=None` **cannot** backfill (`DagNonPeriodicScheduleException`); need `@daily` (or cron). Wipe history: `airflow dags delete 14_medallion_daily -y`.
 
-**Lesson 11 closed:** AGG + VW; G9; G11 `RECON_DAILY_NET_SALES`; return-flag branch; Mailpit optional (§11.7).
-
-**Lesson 12 artifacts:** `checks/idem_day_fingerprint.sql`, `ddl/audit/idem_day_snapshot.sql`, `dags/12_idempotency.py` (BEFORE → re-apply Silver/dims/facts/AGG → AFTER → assert), lesson [`12_idempotency.md`](lessons/12_idempotency.md).
-
-**To close Lesson 12**, learner replies with checkpoint from [`lessons/12_idempotency.md`](lessons/12_idempotency.md) §12.7.
-
-**Next after L12 checkpoint:** Lesson 13 — five-day backfill evidence.
+**To close Lesson 14**, learner replies with checkpoint from [`lessons/14_medallion_daily.md`](lessons/14_medallion_daily.md) §14.9.
 
 ## 8. Plan for the remaining lessons
 
@@ -229,15 +231,15 @@ G6: 0 violations; no negative net.
 | 3 | Stages (**written**) | See "Stage and COPY (L3)" in section 6 |
 | 4 | Waiting (G1) (**written**) | `dags/04_waiting.py`: FileSensor.partial.expand ×4; PUT; `assert_files_on_stage` (LIST + size); Assets taught in notes only |
 | 5 | Bronze (**written**) | `dags/05_bronze_load.py`: wait → PUT overwrite → G1 assert → G2 csv contract → DELETE+FORCE load → archive |
-| 6 | Generator v2 (**written**, slimmed 18 Nov) | `scripts/generate_complex.py`: five days → landing; ~800 lines/day; sales⊆stocked; Nov 10 outliers+anomalies; **D1–D5 planted**; history deferred; lesson [`06_history_generator.md`](lessons/06_history_generator.md) |
+| 6 | Generator v2 (**written**; defects updated 20 Nov) | `scripts/generate_complex.py`: landing CSVs; ~800 lines/day; sales⊆stocked; defects = **`toordinal()%5`** + SCD2 from 13 Nov + SCD1 from 14 Nov; `data/store/defect_log.txt`; history deferred; lesson [`06_history_generator.md`](lessons/06_history_generator.md) (classic window notes may lag — L14 is source of truth for buckets) |
 | 7 | Silver TMP (**written**, closed) | DDL + loads + `07_silver`: G3–G6 + G12; G6b alert; identity; lesson [`07_silver.md`](lessons/07_silver.md) |
 | 8 | Gold dimensions (**written**, closed) | Sequences; IF NOT EXISTS dims; SCD2/SCD1/seed; DAG `08_gold_dims`; lesson [`08_gold_dims.md`](lessons/08_gold_dims.md) |
 | 9 | Gold facts (**written**, closed) | `FCT_*` + G7/G8; DAG `09_gold_facts`; lesson [`09_gold_facts.md`](lessons/09_gold_facts.md) |
 | 10 | Prove defects + PK/G10 (**written**, closed) | `10_prove_defects`: D1–D5 asserts; `pk_*.sql`; G10; lesson [`10_prove_defects.md`](lessons/10_prove_defects.md) |
 | 11 | Aggregate + recon (**written**, closed) | AGG + VW; G9; G11 recon; return-flag branch; Mailpit optional; lesson [`11_agg_recon.md`](lessons/11_agg_recon.md) |
-| 12 | Idempotency + reload (**written**) | Fingerprint + `12_idempotency`; BEFORE/AFTER assert; reload-of-D policy in lesson; [`12_idempotency.md`](lessons/12_idempotency.md) |
-| 13 | Five-day backfill | 10, 11, 12, 13, 16 Nov, every task green |
-| 14 | README + acceptance | Parse, hard-coding and DQ checks; 2 × 5 recon table; all 5 acceptance criteria |
+| 12 | Idempotency + reload (**written**, closed) | Fingerprint + `12_idempotency`; reload drill deferred; [`12_idempotency.md`](lessons/12_idempotency.md) |
+| 13 | Five-day backfill (**written**, closed) | Script + `13_backfill_evidence`; 10–14 Nov; [`13_backfill.md`](lessons/13_backfill.md) |
+| 14 | Ultimate DAG (**written**, Option 1; gen=ds 20 Nov) | `generate_landing_day` + mapped bronze…reconcile; calendar defects + store log; UI/CLI backfill; [`14_medallion_daily.md`](lessons/14_medallion_daily.md) |
 
 **Target DAG** (full ASCII in `LESSONS.md`):
 
@@ -286,7 +288,7 @@ wait_for_file[x4] (G1) → put_to_stage → assert_files_on_stage → load_stg.e
 >
 > **WHAT WE ARE BUILDING**
 >
-> An Airflow DAG that loads **five consecutive days of source files** (backfilled in one run, 10–16 Nov, 5 days) through a **Bronze → Silver → Gold** medallion architecture into Snowflake, with full reconciliation. The DAG must be **idempotent** — safe to run twice for the same date with identical row counts and totals.
+> An Airflow DAG that loads **five consecutive days of source files** (backfilled in one run, 10–14 Nov, 5 days) through a **Bronze → Silver → Gold** medallion architecture into Snowflake, with full reconciliation. The DAG must be **idempotent** — safe to run twice for the same date with identical row counts and totals.
 >
 > **STAGES:** `wait` → `bronze` → `silver` → `gold` → `reconcile`
 >
@@ -361,7 +363,7 @@ wait_for_file[x4] (G1) → put_to_stage → assert_files_on_stage → load_stg.e
 > **ACCEPTANCE CRITERIA (validate every one)**
 >
 > 1. A **second run** for the same date changes **no counts and no totals**
-> 2. The **five‑day backfill (10–16 Nov)** completes with **every task green**
+> 2. The **five‑day backfill (10–14 Nov)** completes with **every task green**
 > 3. **Broken records are quarantined and counted** and do **not** stop the run
 > 4. **No credentials, paths, or table names hard‑coded** in DAG files
 > 5. **Gold net sales ties to source files for all five days**

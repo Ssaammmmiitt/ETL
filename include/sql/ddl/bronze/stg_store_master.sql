@@ -2,7 +2,7 @@
 -- Flattened location > city > region > division.
 -- Feeds TMP_LOCN_HIER, then DIM_DIVISION, DIM_REGION, DIM_CITY, DIM_LOCN.
 -- Badge on the diagram: CSV | _INGEST_DT | full.
-CREATE OR REPLACE TABLE {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_STORE_MASTER (
+CREATE TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_STORE_MASTER (
     LOCN_ID            VARCHAR,
     LOCN_NM            VARCHAR,
     LOCN_TYPE          VARCHAR,

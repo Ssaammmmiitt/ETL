@@ -20,7 +20,7 @@ SELECT
       WHERE _INGEST_DT = '{{ ds }}') AS TMP_SALES_NET,
 
     (SELECT COUNT(*)
-       FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+       FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
       WHERE INGEST_DT = '{{ ds }}'
         AND OBJECT_NM IN ('TMP_SALES_LINE', 'FCT_SALES')) AS QUAR_SALES_CNT,
 

@@ -4,7 +4,7 @@
 -- Note: after a JOIN, use OBJECT_CONSTRUCT(s.*) — OBJECT_CONSTRUCT(*) errors on duplicate keys.
 
 -- 1) Idempotent clear for day D
-DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
  WHERE INGEST_DT = '{{ ds }}'
    AND OBJECT_NM = 'TMP_SALES_LINE';
 
@@ -12,7 +12,7 @@ DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_confi
  WHERE _INGEST_DT = '{{ ds }}';
 
 -- 2) G3 — business keys not null (after trim)
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -37,7 +37,7 @@ WHERE s._INGEST_DT = '{{ ds }}'
   );
 
 -- 3) G4 — duplicate (TRANSACTION_ID, LINE_NUM): keep highest _SOURCE_ROW_NUM
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -65,7 +65,7 @@ INNER JOIN (
 WHERE s._INGEST_DT = '{{ ds }}';
 
 -- 4) G5 — SALE_DT within D-7 .. D
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -78,7 +78,7 @@ FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schem
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_SALES_LINE'
           AND q.SOURCE_FILE = s._SOURCE_FILE
@@ -91,7 +91,7 @@ WHERE s._INGEST_DT = '{{ ds }}'
   );
 
 -- 5) G6 — SOLD_QTY > 0 and NET ≈ SALES − DISCOUNT (±0.01)
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -109,7 +109,7 @@ FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schem
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_SALES_LINE'
           AND q.SOURCE_FILE = s._SOURCE_FILE
@@ -128,7 +128,7 @@ WHERE s._INGEST_DT = '{{ ds }}'
   );
 
 -- 6) G12 — configurable outlier limits (Variable outlier_rules)
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -164,7 +164,7 @@ LEFT JOIN (
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_SALES_LINE'
           AND q.SOURCE_FILE = s._SOURCE_FILE
@@ -211,7 +211,7 @@ FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schem
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_SALES_LINE'
           AND q.SOURCE_FILE = s._SOURCE_FILE

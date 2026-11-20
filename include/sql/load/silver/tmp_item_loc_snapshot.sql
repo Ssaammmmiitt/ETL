@@ -2,7 +2,7 @@
 -- G12 on ON_HAND_QTY; G6b (RESERVED > ON_HAND) is alert-only in the DAG, still loads.
 -- TRY_TO_NUMBER must include (precision, scale) — default scale is 0 (integer).
 
-DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
  WHERE INGEST_DT = '{{ ds }}'
    AND OBJECT_NM = 'TMP_ITEM_LOC_SNAPSHOT';
 
@@ -10,7 +10,7 @@ DELETE FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_confi
  WHERE _INGEST_DT = '{{ ds }}';
 
 -- G3 — keys
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -32,7 +32,7 @@ WHERE s._INGEST_DT = '{{ ds }}'
   );
 
 -- G12 — on-hand absolute limit
-INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE
+INSERT INTO {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE
     (INGEST_DT, SOURCE_FILE, OBJECT_NM, GATE_ID, REASON_CD, RAW_RECORD)
 SELECT
     s._INGEST_DT,
@@ -45,7 +45,7 @@ FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schem
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_ITEM_LOC_SNAPSHOT'
           AND q.SOURCE_FILE = s._SOURCE_FILE
@@ -76,7 +76,7 @@ FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schem
 WHERE s._INGEST_DT = '{{ ds }}'
   AND NOT EXISTS (
         SELECT 1
-        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_QUARANTINE q
+        FROM {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.audit }}.C_REJ_TABLE q
         WHERE q.INGEST_DT = s._INGEST_DT
           AND q.OBJECT_NM = 'TMP_ITEM_LOC_SNAPSHOT'
           AND q.SOURCE_FILE = s._SOURCE_FILE

@@ -13,7 +13,7 @@ Data flows left to right through six coloured columns:
 | Table type | Layer | Purpose | Tables |
 |---|---|---|---|
 | **STG** | Bronze | Raw landing, no transformation | `STG_SALES`, `STG_INVENTORY`, `STG_ITEM_MASTER`, `STG_STORE_MASTER` |
-| **TMP** | Silver | Clean and compare against target | `TMP_SALES_LINE`, `TMP_ITEM_LOC_SNAPSHOT`, `TMP_CUSTOMER`, `TMP_ITEM_HIER`, `TMP_LOCN_HIER`, `TMP_QUARANTINE` |
+| **TMP** | Silver | Clean and compare against target | `TMP_SALES_LINE`, `TMP_ITEM_LOC_SNAPSHOT`, `TMP_CUSTOMER`, `TMP_ITEM_HIER`, `TMP_LOCN_HIER`; rejects in `C_REJ_TABLE` (stored in AUDIT) |
 | **TGT** | Gold | The dimension or fact itself | 10 `DIM_*` + 3 `FCT_*` (2.1 names kept) |
 | **Aggregate** | Gold | Rolled-up marts on top of TGT | `AGG_DAILY_ITEM_LOCN_SALES`, view `VW_DAILY_ITEM_LOCN_SALES`, report packs |
 
@@ -23,7 +23,7 @@ The `*_YYYYMMDD.csv` drops are source files, not tables, so they keep their file
 |---|---|
 | Document (wavy bottom) | Source file drop |
 | Cylinder | Stored table or landed file |
-| Red cylinder | `TMP_QUARANTINE` (rejected rows) |
+| Red cylinder | `C_REJ_TABLE` (rejected rows) |
 | Rounded chip | Dimension table |
 | Red hexagon | Quality gate on a layer boundary |
 | Orange block arrow | Facts look up dimension surrogate keys (1:M) |
@@ -77,26 +77,49 @@ Dimensions load first, in parallel. Facts load after them, because each fact row
 
 | Gate | Boundary | Rule | Action |
 |---|---|---|---|
-| G1 | Source → STG | file arrives by SLA; row count matches the manifest | alert, then fail |
-| G2 | Source → STG | header matches the contract | quarantine file |
-| G3 | STG → TMP | business keys not null | quarantine row |
-| G4 | STG → TMP | `(TRANSACTION_ID, LINE_NUM)` unique | keep latest, quarantine rest |
-| G5 | STG → TMP | sale date within D−7..D | quarantine row |
-| G6 | STG → TMP | net = sales − discount (reserved > on hand only alerts) | quarantine / alert |
-| G7 | TMP → TGT | item and location resolve to a surrogate key | quarantine + alert |
+| G1 | Source → STG | 4 files arrive before the sensor deadline; none empty | fail |
+| G2 | Source → STG | every row has the contracted column count | fail |
+| G3 | STG → TMP | business keys not null | reject row |
+| G4 | STG → TMP | `(TRANSACTION_ID, LINE_NUM)` unique | keep latest, reject rest |
+| G5 | STG → TMP | sale date within D−7..D | reject row |
+| G6 | STG → TMP | qty > 0; net = sales − discount (reserved > on hand only alerts) | reject row / alert |
+| G12 | STG → TMP | outlier rules: qty, price, line amount, on hand | reject row |
+| G7 | TMP → TGT | item and location resolve to a surrogate key | reject row + alert |
 | G8 | TMP → TGT | inventory row count within ±20% of the prior day | fail |
 | G9 | TGT → Aggregate | AGG totals = FCT_SALES per day | fail |
 | G10 | TGT | no overlapping price periods | fail |
+| G11 | Reconcile | row count, amount, orphans, freshness, duplicates (`AUDIT.RECON_DAILY_CHECKS`) | fail |
+| PK | Gold | no duplicate key in any Gold table | fail |
+
+Rejected rows go to `AUDIT.C_REJ_TABLE` (rule + reason + full row); the run stays green.
 
 ## Reload one bad day D
 
-1. Land the corrected file into `STG_*` under `ingest_dt=D`. Keep the bad file, marked superseded.
-2. Overwrite the `TMP_*` partitions that came from that ingest.
-3. Merge `FCT_SALES` on `(TRANSACTION_ID, LINE_NUM)`, then recompute `AGG` for the touched `DAY_KY` values.
-4. In `FCT_INVENTORY`, delete and re-insert `SNAPSHOT_DT = D`.
-5. Re-derive `FCT_PRICE` periods from D onward for the item/location pairs that changed.
-6. For the SCD2 dims, undo the versions opened or closed on D, then re-apply.
-7. Re-run G7–G10, then publish. Every step is idempotent, so a rerun is safe.
+This is implemented in `retail_medallion_daily`. You land the corrected files for D and backfill **D → latest** with *All runs*; the DAG does the rest:
+
+1. Bronze and Silver delete and reload the D partition.
+2. `gold_dims.rewind_gold_for_reload` checks whether D is older than Gold's `C_LOAD_DATES.LAST_LOAD_DT`. If it is, `load/gold/rewind_from_ds.sql` puts Gold back to the end of D − 1:
+   - SCD2 dims and `FCT_PRICE`: delete versions started on or after D, and reopen the versions closed on or after D − 1.
+   - `FCT_INVENTORY`: the same, keyed on `SNAPSHOT_DT`.
+   - `FCT_SALES` and `AGG`: delete `DAY_KY ≥ D`.
+   - `C_LOAD_DATES` (Gold rows): set to D − 1.
+3. D loads normally and must pass G7–G11 and the PK checks.
+4. D+1 … latest are now newer than the mark, so they replay without a rewind.
+5. When `C_LOAD_DATES` is back at the latest day, the reload is done.
+
+Every step is idempotent, so a rerun is safe. Re-running only the latest day never rewinds.
+
+## Control tables (AUDIT schema)
+
+| Table | Holds |
+|---|---|
+| `C_BATCH_SCRIPTS` | Which scripts run, in which order |
+| `C_BATCH_LOG` | Each task attempt: status, row counts, elapsed time, failure reason |
+| `C_PARAM` | Run parameters such as business date and batch id |
+| `C_REJ_TABLE` | Rejected rows and the rule that rejected them (written by the Silver gates and G7) |
+| `C_LOAD_DATES` | Last successful load date per target |
+
+Who writes each one is in `final_state.md`.
 
 ## Departure from the reference
 

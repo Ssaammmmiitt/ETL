@@ -1,7 +1,7 @@
 -- STG_SALES (Bronze): sales_YYYYMMDD.csv as landed. Daily delta, one POS line per row.
 -- Feeds TMP_SALES_LINE and TMP_CUSTOMER, then FCT_SALES and DIM_CUSTOMER.
 -- Badge on the diagram: CSV | _INGEST_DT | delta.
-CREATE OR REPLACE TABLE {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_SALES (
+CREATE TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_SALES (
     TRANSACTION_ID   VARCHAR,
     LINE_NUM         VARCHAR,
     SALE_DT          VARCHAR,

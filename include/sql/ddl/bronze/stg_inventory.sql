@@ -2,7 +2,7 @@
 -- Feeds TMP_ITEM_LOC_SNAPSHOT, then FCT_INVENTORY and FCT_PRICE.
 -- Badge on the diagram: CSV | _INGEST_DT | full.
 -- The business columns are in FILE ORDER: the positional COPY maps $1..$8 onto them.
-CREATE OR REPLACE TABLE {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_INVENTORY (
+CREATE TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_INVENTORY (
     SNAPSHOT_DT      VARCHAR,
     ITEM_ID          VARCHAR,
     LOCN_ID          VARCHAR,

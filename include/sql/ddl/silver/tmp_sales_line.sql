@@ -1,5 +1,5 @@
 -- TMP_SALES_LINE (Silver): typed, cleaned POS lines for day D. Delta by _INGEST_DT.
--- Feeds FCT_SALES. Bad rows go to TMP_QUARANTINE (G3–G6, G12), not here.
+-- Feeds FCT_SALES. Bad rows go to AUDIT.C_REJ_TABLE (G3–G6, G12), not here.
 CREATE TRANSIENT TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.silver }}.TMP_SALES_LINE (
     TRANSACTION_ID   VARCHAR(50)   NOT NULL,
     LINE_NUM         NUMBER(38,0)  NOT NULL,

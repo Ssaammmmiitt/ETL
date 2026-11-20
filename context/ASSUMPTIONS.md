@@ -3,7 +3,7 @@
 Single place for what this project assumes and why. Update this file when a decision changes.
 Detail lives in [THEORY.md](THEORY.md); the lesson plan is in [LESSONS.md](LESSONS.md); the
 target picture is [architecture-Simple view.png](architecture-Simple%20view.png).
-**Where we are in the course:** [PROGRESS.md](PROGRESS.md) (as of 19 Nov 2026: L1–L11 done, L12 in progress).
+**Where we are in the course:** [PROGRESS.md](PROGRESS.md) (as of 19 Nov 2026: L1–L13 done, L14 in progress).
 
 ---
 
@@ -50,8 +50,8 @@ target picture is [architecture-Simple view.png](architecture-Simple%20view.png)
 
 | Assumption | Why |
 |---|---|
-| Five business days: **10, 11, 12, 13, 16 Nov 2026** | Weekdays in 10–16 Nov |
-| Schedule `0 6 * * 1-5`; day **D** = `{{ ds }}` | One run per weekday; data is as of D+1 in spirit |
+| Five consecutive days: **10, 11, 12, 13, 14 Nov 2026** | Simple calendar range — no weekend/holiday skip |
+| Schedule `0 6 * * *` (daily); day **D** = `{{ ds }}` | One run per calendar day in the five-day window; data is as of D+1 in spirit |
 | `_INGEST_DT` = D; `_BATCH_ID` = `{{ run_id }}` | Day to delete / reload by, and which run did it |
 | `max_active_runs = 1` | SCD2, soft-close, price periods and G8 depend on the previous day |
 | **Five pipeline days only** (~810 sales lines/day, **400 txns** total; per-store txns cycle **12/14/16/18/20**) | Enough for Bronze→Gold→recon; store traffic varies, day total fixed. **Long history deferred** |

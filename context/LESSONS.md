@@ -41,7 +41,7 @@ New chat with an agent? Give it [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) first.
 - Empty-then-loaded STG tables with lineage; row counts **5000 / 1502 / 101 / 25**; net **2,843,788.51**
 - DAGs `01_` … `05_` (no `lesson` prefix); landing files archived under `data/archive/2026-11-10/`
 
-**Not built yet:** Five-day backfill (L13), final README (L14). L12 idempotency in progress. Long history deferred.
+**Not built yet:** Long history (deferred). L14 ultimate DAG in progress.
 
 ## Decisions
 
@@ -50,7 +50,7 @@ New chat with an agent? Give it [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) first.
 | Architecture | Follow the simple-view diagram: STG → TMP → TGT → Aggregate, names, gates G1–G10, retention, reload policy | One shared picture; see [THEORY 1](THEORY.md#1-medallion-architecture-stg--tmp--tgt--aggregate) |
 | Brief vs diagram | Diagram names everywhere; brief requirements kept as documented departures | [THEORY 1.4](THEORY.md#14-departures-and-where-the-brief-and-the-diagram-differ) |
 | Airflow | 3.3.2 (existing Docker Compose stack, official image) | Satisfies "2.7+"; 2.x names are mapped below |
-| Backfill dates | 10, 11, 12, 13 and 16 Nov 2026 | The 5 weekdays in 10–16 Nov; schedule `0 6 * * 1-5` produces exactly these |
+| Backfill dates | 10, 11, 12, 13 and 14 Nov 2026 | Five consecutive calendar days; schedule `0 6 * * *` (daily) over that window |
 | External stage | **Dropped** (departure 9); the pipeline uses only the internal stage | No S3, Azure Blob or GCS bucket available, and external stages require one |
 | Snowflake auth | Key pair for a `TYPE = SERVICE` user | No password, no MFA prompts |
 | Local email | Mailpit container (Lesson 11) | Free SMTP server with a web inbox |
@@ -101,8 +101,9 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 - [x] Gold TGT: dimensions first, then facts (L8, L9)
 - [x] Gold Aggregate: `AGG_DAILY_ITEM_LOCN_SALES` + `VW_DAILY_ITEM_LOCN_SALES`, gate G9 (L11)
 - [x] Reconciliation task (G11) that fails the DAG (L11)
-- [~] Idempotent: second run for the same date changes nothing (L12)
-- [ ] Five-day backfill (10, 11, 12, 13, 16 Nov) all green (L13)
+- [x] Idempotent: second run for the same date changes nothing (L12)
+- [x] Five-day backfill (10, 11, 12, 13, 14 Nov) all green (L13)
+- [~] Ultimate single DAG for trigger date → five-day window (L14)
 
 ### Source data
 
@@ -168,8 +169,8 @@ Legend: `[x]` done and checkpoint passed · `[~]` in progress · `[ ]` pending (
 
 ### Acceptance criteria
 
-- [~] 1. Second run for the same date changes no counts and no totals (L12)
-- [ ] 2. Five-day backfill completes with every task green (L13)
+- [x] 1. Second run for the same date changes no counts and no totals (L12)
+- [x] 2. Five-day backfill completes with every task green (L13)
 - [x] 3. Broken records quarantined and counted, run continues (L10)
 - [~] 4. No credentials, paths or table names in DAG files (check from L1)
 - [x] 5. Gold net sales ties to source for all five days (L11)
@@ -218,7 +219,7 @@ airflow-medallion/
 
 ## Target DAG graph (`medallion_daily`)
 
-Schedule `0 6 * * 1-5`, one run per business date D = `{{ ds }}`, `max_active_runs=1`.
+Schedule `0 6 * * *` (daily), one run per calendar date D = `{{ ds }}` for 10–14 Nov, `max_active_runs=1`.
 
 ```
  WAIT  (G1) ───────────────────────────────────────────────────────────────────────────
@@ -274,6 +275,6 @@ Theory column = sections of [`THEORY.md`](THEORY.md) to read before the lesson.
 | 9 | [Gold TGT facts: FCT_SALES, soft-close inventory, FCT_PRICE, G7/G8](lessons/09_gold_facts.md) | Complex | 4.1, 4.5, 3.6, 5.2 | Done (19 Nov 2026) |
 | 10 | [Prove planted defects, PK checker, gate G10](lessons/10_prove_defects.md) | Very complex | 4.4, 4.6, 3.8, 5 | Done (19 Nov 2026) |
 | 11 | [Aggregate + view (G9), reconciliation (G11), return-flag branch](lessons/11_agg_recon.md) | Very complex | 4.7, 5.4, 2.10, 2.11 | Done (19 Nov 2026) |
-| 12 | [Idempotency proof and the reload of one bad day](lessons/12_idempotency.md) | Very complex | 6, 5.5 | **In progress** |
-| 13 | Five-day backfill, every task green, evidence | Very complex | 2.4 | Pending |
-| 14 | README, acceptance-criteria walkthrough | Very complex | 7 | Pending |
+| 12 | [Idempotency proof and the reload of one bad day](lessons/12_idempotency.md) | Very complex | 6, 5.5 | Done (19 Nov 2026; reload drill deferred) |
+| 13 | [Five-day backfill, every task green, evidence](lessons/13_backfill.md) | Very complex | 2.4 | Done (19 Nov 2026) |
+| 14 | [Single-day DAG + native backfill (Option 1)](lessons/14_medallion_daily.md) | Very complex | 2.4, 6, 5.4, 7 | **In progress** |

@@ -1,0 +1,19 @@
+tests/run_all.py · 2026-11-20 10:29:45Z
+
+PASS  dag_imports_without_errors: 1 DAGs parsed, 0 import errors
+PASS  dag_has_no_cycles: depth-first walk found no back edges
+PASS  every_task_has_retries: all tasks retries >= 1
+PASS  sensor_and_mapped_ingest: wait_for_files and bronze.ingest_one mapped; sensor mode=reschedule timeout=600
+PASS  backfill_settings: max_active_runs=1, catchup=False, timetable=CronTriggerTimetable
+PASS  referenced_sql_files_exist: 44 referenced SQL files all exist
+PASS  every_sql_file_is_used: 90 SQL files, all used
+PASS  one_load_file_per_table: every table DDL has a matching load/<layer>/<table>.sql
+PASS  batch_scripts_registry_matches_dag: 39 tasks registered, RUN_SEQ consistent with the graph
+PASS  no_hardcoding_in_submission_dags: 0 hits in ['retail_medallion_daily.py', 'runner.py']
+PASS  no_jinja_in_sql_comments: no {{ }} inside -- comments
+PASS  generator_is_deterministic_per_date: 20 files identical (one-day vs five-day generate)
+PASS  five_consecutive_days_cover_every_defect: any 5 consecutive days contain buckets 0-4
+PASS  planted_defects_land_on_their_day: defects per day OK (11-10:b0, 11-11:b1, 11-12:b2, 11-13:b3, 11-14:b4); SCD2 move 11-13; SCD1 change 11-14
+PASS  files_meet_g2_contracts: 20 files match SOURCE_CONTRACTS
+
+15 passed, 0 failed

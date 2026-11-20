@@ -20,8 +20,14 @@ SOURCES = ["sales", "inventory", "item_master", "store_master"]
 
 # FileSensor (gate G1). The timeout is the arrival deadline for a day's files; it is short so
 # you can watch a timeout happen while learning (production would be hours).
-SENSOR_POKE_SECONDS = 60
+SENSOR_POKE_SECONDS = 20
 SENSOR_TIMEOUT_SECONDS = 10 * 60
+
+# Gate G8: today's inventory row count may differ from the previous loaded day by at most 20%.
+G8_MAX_DRIFT = 0.20
+
+# Reconcile "orphans": share of a day's sales lines rejected for an unknown item/store key (G7).
+ORPHAN_MAX_PCT = 0.01
 
 # Gate G2: expected field counts (and whether the file has a header). Checked before COPY.
 SOURCE_CONTRACTS = {

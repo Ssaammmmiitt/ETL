@@ -7,7 +7,7 @@ Assignment 2.2 places the 2.1 Costco star schema into Bronze, Silver and Gold la
 | Table type | Layer | Purpose | Objects |
 |---|---|---|---|
 | **STG** | Bronze | Raw landing, no transformation | `STG_SALES`, `STG_INVENTORY`, `STG_ITEM_MASTER`, `STG_STORE_MASTER` |
-| **TMP** | Silver | Clean and compare against target | `TMP_SALES_LINE`, `TMP_CUSTOMER`, `TMP_ITEM_LOC_SNAPSHOT`, `TMP_ITEM_HIER`, `TMP_LOCN_HIER`, `TMP_QUARANTINE` |
+| **TMP** | Silver | Clean and compare against target | `TMP_SALES_LINE`, `TMP_CUSTOMER`, `TMP_ITEM_LOC_SNAPSHOT`, `TMP_ITEM_HIER`, `TMP_LOCN_HIER`; rejects in `C_REJ_TABLE` (stored in AUDIT) |
 | **TGT** | Gold | The dimension or fact itself | the 10 `DIM_*` and 3 `FCT_*` tables, keeping their 2.1 names |
 | **Aggregate** | Gold | Rolled-up marts on top of TGT | `AGG_DAILY_ITEM_LOCN_SALES` (+ view `VW_DAILY_ITEM_LOCN_SALES`) |
 
@@ -53,7 +53,7 @@ The assignment wording says 13 tables. The 2.1 model has **14**: 10 dimensions, 
 - Typed columns, trimmed strings and normalised IDs.
 - Each TMP row is compared with its TGT table to classify it as new, changed or unchanged before Gold is loaded.
 - Deduplicated on the business key for that object.
-- Bad rows are moved to `TMP_QUARANTINE` with a reason code; they are not silently dropped.
+- Bad rows are moved to `C_REJ_TABLE` with a reason code; they are not silently dropped.
 - Lineage columns (`ingest_dt`, `source_file`) are retained.
 
 **Does not guarantee**
@@ -116,7 +116,7 @@ Bronze and Silver hold only STG and TMP objects. They are not 2.1 model tables:
 | `TMP_ITEM_LOC_SNAPSHOT` | `snapshot_dt` | full | `inventory_YYYYMMDD.csv` |
 | `TMP_ITEM_HIER` | none | full | `item_master_YYYYMMDD.csv` |
 | `TMP_LOCN_HIER` | none | full | `store_master_YYYYMMDD.csv` |
-| `TMP_QUARANTINE` | `ingest_dt` | delta | all (failed rows / files) |
+| `C_REJ_TABLE` | `ingest_dt` | delta | all (failed rows / files) |
 
 ## Quality gates
 
@@ -141,7 +141,7 @@ At least six rules are required. Ten are defined. Each sits on a named layer bou
 | Layer | Retention | Notes |
 |---|---|---|
 | Bronze (STG) | 400 days online, then cold archive | Covers year-over-year compares and one-day reloads |
-| `TMP_QUARANTINE` | 90 days | Long enough to investigate; not a permanent store |
+| `C_REJ_TABLE` | 90 days | Long enough to investigate; not a permanent store |
 | Silver (TMP) | 3 years | Rebuild window for Gold without depending only on Bronze |
 | Gold TGT | 7 years | Finance / audit horizon |
 | Gold Aggregate | 3 years | Rebuildable from TGT; shorter online window is fine |
@@ -150,6 +150,13 @@ At least six rules are required. Ten are defined. Each sits on a named layer bou
 ## Reload policy (one bad day D)
 
 Partitioning is what makes a single-day reload safe and cheap.
+
+> **As built:**
+>
+> - Steps 3–6 are done by `gold_dims.rewind_gold_for_reload` (`load/gold/rewind_from_ds.sql`). It runs when D is older than Gold's `AUDIT.C_LOAD_DATES.LAST_LOAD_DT`.
+> - The rewind deletes Gold versions and rows from D onward, reopens the versions that loads on or after D had closed, and sets `C_LOAD_DATES` to D − 1.
+> - A backfill D → latest then replays forward in order.
+> - Steps 2 and 7–9 are the normal daily run. Step 1 in the bootcamp is a re-landed file for D.
 
 1. **Land the correction.** Place the corrected file as a new version under `ingest_dt=D`. Keep the bad file; mark it superseded. Do not overwrite Bronze history.
 2. **Rebuild Silver for that ingest.** Overwrite Silver partitions that came from ingest D (`sale_dt` / `snapshot_dt` / full-refresh masters). Lineage columns record which ingest produced each row.

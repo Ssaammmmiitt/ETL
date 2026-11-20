@@ -1,16 +1,20 @@
-"""Lesson 6: complex source files — five pipeline days + planted defects.
+"""Complex source files — landing CSVs + calendar-bucket defects.
 
 Writes to data/landing/:
   {sales,inventory,item_master,store_master}_YYYYMMDD.csv
-  for 2026-11-10, 11, 12, 13, 16
 
-Design choices (kept lean on purpose):
-  - No Jan–Nov history folder (deferred)
-  - ~800 clean sales lines/day (400 txns total; per-store counts cycle 12/14/16/18/20)
-  - Clean sales only for items that store stocks; one *planted* orphan for G7
-  - Five brief defects planted (null ITEM_ID×2, negative qty, orphan item, dup line, SCD2 city move)
+Transaction defects are deterministic from the calendar date alone
+(``date.toordinal() % 5`` exclusive buckets) so one-day or multi-day
+generate stays consistent for any logical date / backfill. Any five
+consecutive days contain every bucket.
 
-Deterministic: same run → same files. Hierarchies/headers match generate_simple.py.
+  0 outliers | 1 null ITEM_ID | 2 neg qty | 3 orphan | 4 dup line
+  (10–14 Nov 2026 → outliers, null, neg, orphan, dup)
+
+SCD2 city move on LOCN 1008 is separate: from ``SCD2_FROM`` (2026-11-13) onward.
+SCD1 item description change: from ``SCD1_FROM`` (2026-11-14) onward.
+
+Each planted defect is appended to ``data/store/defect_log.txt`` (store id in line).
 
 Run from the project folder:
     python scripts\\generate_complex.py
@@ -18,18 +22,24 @@ Run from the project folder:
 from __future__ import annotations
 
 import csv
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LANDING_DIR = ROOT / "data" / "landing"
+STORE_DIR = ROOT / "data" / "store"
+DEFECT_LOG_PATH = STORE_DIR / "defect_log.txt"
+SCD2_FROM = date(2026, 11, 13)
+SCD1_FROM = date(2026, 11, 14)
+# Inventory stock is replayed from this day so any single day is reproducible.
+STOCK_ANCHOR = date(2026, 11, 10)
 
 PIPELINE_DATES = [
     date(2026, 11, 10),
     date(2026, 11, 11),
     date(2026, 11, 12),
     date(2026, 11, 13),
-    date(2026, 11, 16),
+    date(2026, 11, 14),
 ]
 # Per-store txn counts cycle 12,14,16,18,20 (sum 80 × 5 = 400 txns/day ≈ 800 lines).
 # Busier stores get more tills; daily total stays the same every pipeline day.
@@ -178,7 +188,7 @@ def txns_for_store(store_index: int) -> int:
 
 
 def prices_for_day(base_prices: dict, d: date) -> dict:
-    """Shelf + promo for day D. Light Nov lift + Monday promos (pipeline days only)."""
+    """Shelf + promo for day D. Light Nov lift + sparse promos (pipeline days only)."""
     inflate = 1.02 if d.month == 11 else 1.0
     out = {}
     for item_id, (unit, item_type, item_num) in base_prices.items():
@@ -186,7 +196,7 @@ def prices_for_day(base_prices: dict, d: date) -> dict:
         promo = None
         if item_num % 10 == 0:
             promo = round(shelf * 0.90, 2)
-        elif d.weekday() == 0 and item_num % 5 == 0:
+        elif item_num % 5 == 0 and (d.day % 2 == 0):
             promo = round(shelf * 0.92, 2)
         elif d.month == 11 and item_num % 7 == 0:
             promo = round(shelf * 0.88, 2)
@@ -263,6 +273,28 @@ def evolve_stock(stock: dict, sales_rows: list, d: date) -> None:
         stock[key] = round(candidate, 3)
 
 
+def stock_as_of(d: date, items, stores, stocked_by_store, base_prices) -> dict:
+    """Stock at the start of day d, replayed from STOCK_ANCHOR.
+
+    Replaying (instead of carrying stock between loop days) makes day d's
+    inventory file identical whether you generate one day or a whole window.
+    """
+    stock = init_stock(items, stores, stocked_by_store)
+    day = STOCK_ANCHOR
+    while day < d:
+        prices = prices_for_day(base_prices, day)
+        sales = build_sales(day, stores, prices, stocked_by_store)
+        inventory = build_inventory(day, stock, prices, stocked_by_store)
+        add_pipeline_outliers_and_anomalies(day, sales, inventory, prices)
+        evolve_stock(
+            stock,
+            [r for r in sales if r[4] and r[4] != ORPHAN_ITEM_ID and float(r[10]) > 0],
+            day,
+        )
+        day += timedelta(days=1)
+    return stock
+
+
 def build_inventory(d: date, stock: dict, prices: dict, stocked_by_store: dict[str, list[str]]) -> list:
     rows = []
     iso = d.isoformat()
@@ -282,16 +314,34 @@ def build_inventory(d: date, stock: dict, prices: dict, stocked_by_store: dict[s
 
 def item_master_for_day(items: list, d: date) -> list:
     rows = [row[:] for row in items]
-    # Light SCD1-style desc tweak on the Monday pipeline day only.
-    if d == date(2026, 11, 16):
+    # SCD1 desc change from SCD1_FROM onward (DIM_ITEM.ITEM_DESC updated in place).
+    if d >= SCD1_FROM:
         rows[10][2] = f"{rows[10][2]} (rev Nov)"
     return rows
 
 
 # Planted orphan ITEM_ID — never appears in item_master (G7).
 ORPHAN_ITEM_ID = "199999"
-# Store that moves city on/after 2026-11-13 (SCD2 on DIM_LOCN). Brief "district" = CITY_ID.
+# Store that moves city on/after SCD2_FROM (SCD2 on DIM_LOCN). Brief "district" = CITY_ID.
 SCD2_LOCN_ID = "1008"
+
+
+def defect_bucket(d: date) -> int:
+    """Exclusive defect class for this calendar day (0..4)."""
+    return d.toordinal() % 5
+
+
+def append_defect_log(lines: list[str], *, log_path: Path | None = None) -> Path:
+    """Append one timestamped line per defect to data/store/defect_log.txt."""
+    if not lines:
+        return log_path or DEFECT_LOG_PATH
+    path = log_path or DEFECT_LOG_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with open(path, "a", encoding="utf-8") as f:
+        for line in lines:
+            f.write(f"{ts}\t{line}\n")
+    return path
 
 
 def set_sales_line(row, qty=None, discount=None, item_id=None, price=None):
@@ -318,10 +368,11 @@ def first_row_at(sales, locn_id: str, skip: int = 0):
     raise RuntimeError(f"no sales row for store {locn_id}")
 
 
-def add_pipeline_outliers_and_anomalies(d: date, sales, inventory, prices):
-    """Only 2026-11-10. Premium edits stay on stores that stock 100101 (1001, 1013)."""
-    if d != date(2026, 11, 10):
-        return
+def add_pipeline_outliers_and_anomalies(d: date, sales, inventory, prices) -> list[str]:
+    """Bucket 0 only. Premium edits stay on stores that stock 100101."""
+    if defect_bucket(d) != 0:
+        return []
+    notes = []
     set_sales_line(first_row_at(sales, "1001", 0), item_id="100101", qty=1, price=2499.99)
     set_sales_line(first_row_at(sales, "1013", 0), item_id="100101", qty=1, price=2499.99)
     set_sales_line(sales[100], qty=480)
@@ -339,44 +390,58 @@ def add_pipeline_outliers_and_anomalies(d: date, sales, inventory, prices):
     if normal:
         set_sales_line(normal[0], price=round(float(normal[0][11]) / 100, 2))
     inventory[40][3] = "9999999.000"
+    notes.append(
+        f"{d.isoformat()} store=1001,1013 bucket=0 outliers/anomalies "
+        f"(premium/qty/discount/inventory spikes)"
+    )
+    return notes
 
 
 def plant_defects(d: date, sales: list) -> list[str]:
-    """
-    Brief defects (gates fire in L7–L10). Mutates sales; may append rows.
-    Uses store-relative rows so varying txn counts per store do not shift targets.
-    Returns short labels for the run summary.
-    """
+    """One exclusive transaction-defect class from ``defect_bucket(d)``. Mutates sales."""
     notes = []
-    if d == date(2026, 11, 11):
-        # D1: two null ITEM_ID → G3 (store 1001 has the fewest txns in the pattern = 12)
+    b = defect_bucket(d)
+    if b == 1:
+        # null ITEM_ID → G3 (store 1001 has the fewest txns in the pattern = 12)
         r_a = first_row_at(sales, "1001", 5)
         r_b = first_row_at(sales, "1001", 6)
         r_a[4] = ""
         r_b[4] = ""
-        notes.append(f"D1 null ITEM_ID on {r_a[0]} L{r_a[1]} and {r_b[0]} L{r_b[1]}")
-        # D2: negative SOLD_QTY → G6
+        notes.append(
+            f"{d.isoformat()} store=1001 bucket=1 D1 null ITEM_ID "
+            f"on {r_a[0]} L{r_a[1]} and {r_b[0]} L{r_b[1]}"
+        )
+    elif b == 2:
         r_neg = first_row_at(sales, "1001", 10)
         set_sales_line(r_neg, qty=-2.0, discount=0.0)
-        notes.append(f"D2 negative qty on {r_neg[0]} L{r_neg[1]}")
-        # D4: duplicate (TRANSACTION_ID, LINE_NUM) → G4 keeps latest (higher file row)
+        notes.append(
+            f"{d.isoformat()} store=1001 bucket=2 D2 negative qty "
+            f"on {r_neg[0]} L{r_neg[1]}"
+        )
+    elif b == 3:
+        r_orph = first_row_at(sales, "1002", 5)
+        set_sales_line(r_orph, item_id=ORPHAN_ITEM_ID, qty=1.0, price=9.99, discount=0.0)
+        notes.append(
+            f"{d.isoformat()} store=1002 bucket=3 D3 orphan ITEM_ID {ORPHAN_ITEM_ID} "
+            f"on {r_orph[0]} L{r_orph[1]}"
+        )
+    elif b == 4:
         r_dup = first_row_at(sales, "1001", 15)
         dup = r_dup[:]
         set_sales_line(dup, qty=float(dup[10]) + 1, discount=0.0)
         sales.append(dup)
-        notes.append(f"D4 duplicate line {dup[0]} L{dup[1]} (second physical row)")
-    if d == date(2026, 11, 12):
-        # D3: item missing from item_master → G7 (intentional orphan)
-        r_orph = first_row_at(sales, "1002", 5)
-        set_sales_line(r_orph, item_id=ORPHAN_ITEM_ID, qty=1.0, price=9.99, discount=0.0)
-        notes.append(f"D3 orphan ITEM_ID {ORPHAN_ITEM_ID} on {r_orph[0]} L{r_orph[1]}")
+        notes.append(
+            f"{d.isoformat()} store=1001 bucket=4 D4 duplicate line "
+            f"{dup[0]} L{dup[1]} (second physical row)"
+        )
     return notes
 
 
-def store_master_for_day(stores: list, d: date) -> list:
-    """D5: LOCN 1008 moves CITY_ID on 2026-11-13 onward → SCD2 on DIM_LOCN."""
+def store_master_for_day(stores: list, d: date, *, scd2_from: date | None = None) -> list:
+    """D5: LOCN 1008 moves CITY_ID from scd2_from onward (default SCD2_FROM) → SCD2 on DIM_LOCN."""
     rows = [r[:] for r in stores]
-    if d >= date(2026, 11, 13):
+    start = scd2_from or SCD2_FROM
+    if d >= start:
         for r in rows:
             if r[0] == SCD2_LOCN_ID:
                 # Was Spokane CT08 / R03; move under Portland CT04 / R02 (same division).
@@ -411,45 +476,91 @@ def write_csv(path: Path, header, rows):
         writer.writerows(rows)
 
 
-def main():
+def generate_pipeline_days(
+    dates: list[date] | None = None,
+    *,
+    landing_dir: Path | None = None,
+    defect_log_path: Path | None = None,
+    scd2_from: date | None = None,
+) -> list[dict]:
+    """Write four CSVs per day under landing_dir. Returns per-day summary dicts.
+
+    Defects use ``toordinal() % 6`` (calendar), not window index. SCD2 uses
+    ``scd2_from`` (default ``SCD2_FROM``). Appends to ``data/store/defect_log.txt``.
+    """
+    dates = list(dates) if dates is not None else list(PIPELINE_DATES)
+    if len(dates) < 1:
+        raise ValueError("dates must be non-empty")
+    out_dir = landing_dir or LANDING_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    scd2_start = scd2_from or SCD2_FROM
+    # Prefer data/store next to landing (Compose volume); else project default.
+    log_file = defect_log_path or (out_dir.parent / "store" / "defect_log.txt")
+
     items, base_prices = build_items(100)
     stores = build_stores()
     stocked_by_store = build_stocked_by_store(items, stores)
-    stock = init_stock(items, stores, stocked_by_store)
 
-    LANDING_DIR.mkdir(parents=True, exist_ok=True)
     summary = []
-
-    defect_log = []
-    for d in PIPELINE_DATES:
+    defect_log: list[str] = []
+    for d in dates:
+        stock = stock_as_of(d, items, stores, stocked_by_store, base_prices)
         prices = prices_for_day(base_prices, d)
         sales = build_sales(d, stores, prices, stocked_by_store)
         inventory = build_inventory(d, stock, prices, stocked_by_store)
-        add_pipeline_outliers_and_anomalies(d, sales, inventory, prices)
-        # Evolve from clean-ish sales before defect rows (null/orphan/dup) distort stock.
-        evolve_stock(stock, [r for r in sales if r[4] and r[4] != ORPHAN_ITEM_ID and float(r[10]) > 0], d)
+        defect_log.extend(add_pipeline_outliers_and_anomalies(d, sales, inventory, prices))
         defect_log.extend(plant_defects(d, sales))
         bad = unexpected_unstocked_count(sales, stocked_by_store)
         if bad:
             raise RuntimeError(f"{d}: {bad} unexpected unstocked sales — fix stocked list")
 
         nodash = d.strftime("%Y%m%d")
-        stores_out = store_master_for_day(stores, d)
-        write_csv(LANDING_DIR / f"sales_{nodash}.csv", SALES_HEADER, sales)
-        write_csv(LANDING_DIR / f"inventory_{nodash}.csv", None, inventory)
-        write_csv(LANDING_DIR / f"item_master_{nodash}.csv", ITEM_HEADER, item_master_for_day(items, d))
-        write_csv(LANDING_DIR / f"store_master_{nodash}.csv", STORE_HEADER, stores_out)
+        stores_out = store_master_for_day(stores, d, scd2_from=scd2_start)
+        if d >= scd2_start:
+            defect_log.append(
+                f"{d.isoformat()} store={SCD2_LOCN_ID} D5 SCD2 CITY_ID move "
+                f"(from {scd2_start.isoformat()} onward)"
+            )
+        write_csv(out_dir / f"sales_{nodash}.csv", SALES_HEADER, sales)
+        write_csv(out_dir / f"inventory_{nodash}.csv", None, inventory)
+        write_csv(
+            out_dir / f"item_master_{nodash}.csv",
+            ITEM_HEADER,
+            item_master_for_day(items, d),
+        )
+        write_csv(out_dir / f"store_master_{nodash}.csv", STORE_HEADER, stores_out)
 
-        summary.append((nodash, len(sales), len(inventory), round(sum(float(r[15]) for r in sales), 2)))
+        net = round(sum(float(r[15]) for r in sales), 2)
+        summary.append(
+            {
+                "ds": d.isoformat(),
+                "ds_nodash": nodash,
+                "sales_rows": len(sales),
+                "inventory_rows": len(inventory),
+                "net_sales_amt": net,
+                "defect_bucket": defect_bucket(d),
+            }
+        )
 
-    print("pipeline landing (no history generated):")
-    for nodash, n_sales, n_inv, net in summary:
-        print(f"  {nodash}: sales={n_sales} inventory={n_inv} NET_SALES_AMT={net:.2f}")
+    log_path = append_defect_log(defect_log, log_path=log_file)
+    print("pipeline landing:")
+    for row in summary:
+        print(
+            f"  {row['ds_nodash']}: sales={row['sales_rows']} "
+            f"inventory={row['inventory_rows']} NET_SALES_AMT={row['net_sales_amt']:.2f} "
+            f"bucket={row['defect_bucket']}"
+        )
     print("planted defects:")
     for line in defect_log:
         print(f"  {line}")
-    print(f"  D5 SCD2: {SCD2_LOCN_ID} CITY_ID Spokane→Portland from 2026-11-13 onward")
-    print(f"wrote under {LANDING_DIR}")
+    print(f"  D5 SCD2: {SCD2_LOCN_ID} CITY_ID move from {scd2_start.isoformat()} onward")
+    print(f"defect log → {log_path}")
+    print(f"wrote under {out_dir}")
+    return summary
+
+
+def main():
+    generate_pipeline_days(PIPELINE_DATES)
     hist = ROOT / "data" / "history"
     if hist.exists():
         print(f"note: {hist} still exists from the old run — safe to delete; generator no longer writes it")

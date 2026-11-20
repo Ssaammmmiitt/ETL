@@ -2,7 +2,7 @@
 -- Flattened item > subcategory > category > department.
 -- Feeds TMP_ITEM_HIER, then DIM_DEPARTMENT, DIM_CATEGORY, DIM_SUBCATEGORY, DIM_ITEM.
 -- Badge on the diagram: CSV | _INGEST_DT | full.
-CREATE OR REPLACE TABLE {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_ITEM_MASTER (
+CREATE TABLE IF NOT EXISTS {{ var.json.medallion_config.database }}.{{ var.json.medallion_config.schemas.bronze }}.STG_ITEM_MASTER (
     ITEM_ID           VARCHAR,
     ITEM_NM           VARCHAR,
     ITEM_DESC         VARCHAR,
