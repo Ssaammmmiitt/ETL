@@ -32,3 +32,6 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/
+
+# Local deep notes (not for the public repo)
+**/final_state.md

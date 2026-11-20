@@ -4,7 +4,7 @@ Airflow 3.3.2 + Snowflake medallion pipeline for retail files. One DAG (`retail_
 
 > ***Evidence pack: [evidence/EVIDENCE.md](evidence/EVIDENCE.md) - screenshots of a full proof run: fresh start, five-day backfill, daily load, idempotent rerun, and reload of one past day.***
 
-Course notes: [THEORY.md](context/THEORY.md) · [LESSONS.md](context/LESSONS.md) · [runbook](context/runbook.md)
+Runbook: [context/runbook.md](context/runbook.md)
 
 ![Architecture, simple view](context/architecture-Simple%20view.png)
 
